@@ -1,0 +1,84 @@
+{
+  "config": {
+    "name": "screen1",
+    "rotation": 0
+  },
+  "fallback": {
+    "type": "image",
+    "media": "default.png"
+  },
+  "defaults": [
+    {
+      "start_date_time": "01/01/2000 00:00",
+      "type": "video",
+      "media": "default.mp4"
+    },
+    {
+      "start_date_time": "06/12/2019 19:45",
+      "type": "image",
+      "media": "default0.png"
+    },
+    {
+      "start_date_time": "07/23/2019 14:30",
+      "type": "image",
+      "media": "default1.png"
+    },
+    {
+      "start_date_time": "09/21/2019 11:35",
+      "type": "manual",
+      "media": [
+        {
+          "type": "image",
+          "media": "manual.png"
+        },
+        {
+          "type": "presentation",
+          "media": "manual.pdf"
+        }
+      ]
+    },
+    {
+      "start_date_time": "10/21/2019 11:35",
+      "type": "twitch",
+      "media": "put twitch url or something here"
+    },
+    {
+      "start_date_time": "11/21/2019 11:35",
+      "type": "yelp",
+      "media": "put yelp url or something here"
+    },
+    {
+      "start_date_time": "12/21/2019 11:35",
+      "type": "instagram",
+      "media": "put instagram url or something here"
+    }
+  ],
+  "events": [
+    {
+      "start_date_time": "06/12/2019 20:15",
+      "end_date_time": "07/13/2019 12:00",
+      "start_time": "12:00",
+      "end_time": "23:30",
+      "days": [
+        "FRIDAY",
+        "SATURDAY",
+        "SUNDAY"
+      ],
+      "priority": 1,
+      "type": "image",
+      "media": "event0.png"
+    },
+    {
+      "start_date_time": "10/12/2019 00:00",
+      "end_date_time": "10/13/2019 00:00",
+      "start_time": "12:00",
+      "end_time": "23:30",
+      "days": [
+        "FRIDAY"
+      ],
+      "priority": 2,
+      "type": "twitter",
+      "media": "put url or something here"
+    }
+  ]
+}
