@@ -1,0 +1,97 @@
+{
+  // Per display config
+  "config": {
+    "orientation": "horizontal",
+    "resolution": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  // In case of missing files or mid download
+  "fallback": {
+    "type": "image",
+    "media": "default.png"
+  },
+  // Default mode and file when no events are active
+  "defaults": [
+    {
+      "start_date_time": "0000000000",
+      "type": "video",
+      "media": "default.mp4"
+    },
+    {
+      "start_date_time": "0612191945",
+      "type": "image",
+      "media": "default0.png"
+    },
+    {
+      "start_date_time": "0723191430",
+      "type": "image",
+      "media": "default1.png"
+    },
+    {
+      "start_date_time": "0921191135",
+      // Where manual interaction with interface controls active mode out of list
+      "type": "manual",
+      "media": [
+        {
+          "type": "image",
+          "media": "manual.png"
+        },
+        {
+          "type": "presentation",
+          "media": "manual.pdf"
+        }
+      ]
+    },
+    {
+      "start_date_time": "1021191135",
+      "type": "twitch",
+      "media": "put twitch url or something here"
+    },
+    {
+      "start_date_time": "1121191135",
+      "type": "yelp",
+      "media": "put yelp url or something here"
+    },
+    {
+      "start_date_time": "1221191135",
+      "type": "instagram",
+      "media": "put instagram url or something here"
+    }
+  ],
+  // Temporary changes from defaults when all conditions are met
+  "events": [
+    {
+      "conditions": {
+        "start_date_time": "0612192015",
+        "end_date_time": "0713191200",
+        "start_time": "1200",
+        "end_time": "2330",
+        "days": [
+          "FRI",
+          "SAT",
+          "SUN"
+        ],
+        // Higher number means higher priority
+        "priority": 1
+      },
+      "type": "image",
+      "media": "event0.png"
+    },
+    {
+      "conditions": {
+        "start_date_time": "1012190000",
+        "end_date_time": "1013190000",
+        "start_time": "1200",
+        "end_time": "2330",
+        "days": [
+          "FRI"
+        ],
+        "priority": 2
+      },
+      "type": "twitter",
+      "media": "put url or something here"
+    }
+  ]
+}
