@@ -1,9 +1,12 @@
 from flask import Flask, jsonify, request, send_file, redirect, url_for
-from flask_restful import Resource, Api, inputs
+from flask_restful import Resource, Api
 from flask_httpauth import HTTPBasicAuth
 import json, os
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
 api = Api(app)
 auth = HTTPBasicAuth()
 
@@ -42,7 +45,17 @@ class Media(Resource):
         return send_file(os.path.join(os.path.dirname(__file__), MEDIA_DIRECTORY, filename))
 
 
-class Index(Resource):
+class ScreenIndex(Resource):
+    def get(self):
+        files = []
+        for filename in os.listdir(os.path.join(os.path.dirname(__file__), SCREEN_DIRECTORY)):
+            path = os.path.join(os.path.dirname(__file__), SCREEN_DIRECTORY, filename)
+            if os.path.isfile(path):
+                files.append(filename)
+        return jsonify(files)
+
+
+class MediaIndex(Resource):
     def get(self):
         files = []
         for filename in os.listdir(os.path.join(os.path.dirname(__file__), MEDIA_DIRECTORY)):
@@ -66,8 +79,9 @@ def verify(username, password):
     return password == "password" and username == "username"
 
 api.add_resource(Screens, '/screen/<string:screen>')
+api.add_resource(ScreenIndex, '/screen')
 api.add_resource(Media, '/media/<string:filename>')
-api.add_resource(Index, '/media')
+api.add_resource(MediaIndex, '/media')
 
 if __name__ == '__main__':
     app.run(debug=True)
