@@ -1,5 +1,6 @@
 package com.uplinksystems.escreens;
 
+import com.sun.jna.NativeLibrary;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -7,21 +8,25 @@ import org.joda.time.format.DateTimeFormatter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import uk.co.caprica.vlcj.component.EmbeddedMediaPlayerComponent;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.sql.Time;
 import java.time.DayOfWeek;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Display {
 
@@ -33,17 +38,22 @@ public class Display {
     private List<Default> defaults;
     private List<String> pings;
     private Map<String, Image> loadedImages;
-    private Media fallback;
+    private Media fallback, currentMedia;
     private Map<String, Boolean> pingStatus;
     private DateTimeFormatter dateTimeFormatter;
     private Image missingConfig;
     private boolean configured;
     private JFrame frame;
+    private EmbeddedMediaPlayerComponent mediaPlayer;
+    private Panel currentPanel;
 
     private final String MEDIA_DIRECTORY = "";
     private final String CONFIG_FILE = "config.json";
 
     private Display() throws Exception {
+        NativeLibrary.addSearchPath("libvlc", "C:\\Program Files\\VideoLAN\\VLC");
+        // Todo: add linux path
+        //NativeLibrary.addSearchPath("libvlc", "");
         largeFont = new Font("serif", Font.PLAIN, 128);
         events = new ArrayList<>();
         defaults = new ArrayList<>();
@@ -55,9 +65,30 @@ public class Display {
         missingConfig = ImageIO.read(new File("missing_config.png"));
         dateTimeFormatter = DateTimeFormat.forPattern("MM/dd/yyyy HH:mm");
         new Thread(this::updatePings).start();
+        new Thread(this::watchJar).start();
+        new Thread(this::updateMedia).start();
         //sendPutRequest("screen/screen1", "{\"language\":\"russian\", \"description\":\"yellow\"}");
         //sendGetRequest("screen/screen1");
         //sendPostRequest("media/test.zip", "test.zip");
+    }
+
+    private void updateMedia() {
+        while (true) {
+            System.out.println(getCurrentMedia());
+            try {
+                if (getCurrentMedia() != currentMedia) {
+                    System.out.println("Invalidating");
+                    currentMedia = getCurrentMedia();
+                    switchPane(currentMedia.type);
+                    frame.invalidate();
+                    frame.repaint();
+                    //frame.validate();
+                }
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void configuration() throws Exception {
@@ -76,7 +107,7 @@ public class Display {
             while (attempts < 4 && "".equals(response)) {
                 System.out.println("Attempt " + attempts + " to pull JSON file");
                 try {
-                    response = sendGetRequest("screen/screen1");
+                    response = sendGetRequest("screen/" + name);
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
                 }
@@ -125,7 +156,7 @@ public class Display {
             // Per display config
             JSONObject config = (JSONObject) json.get("config");
             name = (String) config.get("name");
-            rotation = (int)(long) config.get("rotation");
+            rotation = (int) (long) config.get("rotation");
 
             // In case of missing files or mid download
             this.fallback = mediaFromJSON((JSONObject) json.get("fallback"));
@@ -198,25 +229,43 @@ public class Display {
         //mainPanel.add(splitPane, BorderLayout.CENTER);
         //splitPane.setResizeWeight(0.5f);
         frame = new JFrame();
+        frame.getContentPane().setLayout(new CardLayout());
 
         // Hide cursor
         BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0), "blank cursor");
         frame.getContentPane().setCursor(blankCursor);
 
-        JPanel pane = new JPanel() {
+        mediaPlayer = new EmbeddedMediaPlayerComponent() {
+            @Override
+            public void paintComponents(Graphics g) {
+                super.paintComponents(g);
+                System.out.println("REPAINT");
+            }
+        };
+        JPanel mainPane = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
+                //super.paintComponent(g);
                 draw(g);
             }
         };
-        frame.add(pane);
+        frame.add(Panel.MAIN.name(), mainPane);
+        frame.add(Panel.MEDIA.name(), mediaPlayer);
         frame.setTitle("ZapDisplay");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
         frame.setUndecorated(true);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                mediaPlayer.release();
+                System.exit(0);
+            }
+        });
+        switchPane(Panel.MAIN);
         frame.setVisible(true);
+        mediaPlayer.setVisible(false);
     }
 
     private void draw(Graphics g) {
@@ -237,17 +286,34 @@ public class Display {
             return;
         }
 
-        Media media = getCurrentMedia();
+        Media media = currentMedia;
         if (media == null) {
             System.out.println("Even the fallback is null, abandon ship!");
             return;
         }
         if (!media.available()) {
-            System.out.println("Media not availible: " + media.media);
+            System.out.println("Media not available: " + media.media);
             media = fallback;
         }
-        System.out.println("get current media: " + getCurrentMedia());
+        System.out.println("Drawing media: " + media);
         renderMedia(g2d, media);
+    }
+
+    void switchPane(MediaType media) {
+        if (currentPanel == Panel.MEDIA) {
+            mediaPlayer.getMediaPlayer().stop();
+        }
+        if (media == MediaType.VIDEO) {
+            switchPane(Panel.MEDIA);
+            mediaPlayer.getMediaPlayer().playMedia(currentMedia.media.info);
+        }
+        else
+            switchPane(Panel.MAIN);
+    }
+
+    void switchPane(Panel panel) {
+        ((CardLayout) frame.getContentPane().getLayout()).show(frame.getContentPane(), panel.name());
+        currentPanel = panel;
     }
 
     private void renderMedia(Graphics2D g, Media media) {
@@ -255,7 +321,7 @@ public class Display {
             case IMAGE:
                 if (!loadedImages.containsKey(media.media.info))
                     try {
-                        loadedImages.put(media.media.info, rotateImage(ImageIO.read(new File(MEDIA_DIRECTORY + File.separator + media.media.info))));
+                        loadedImages.put(media.media.info, rotateImage(ImageIO.read(new File(MEDIA_DIRECTORY + media.media.info))));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -264,7 +330,6 @@ public class Display {
             case YELP:
 
                 break;
-
             case VIDEO:
 
                 break;
@@ -399,6 +464,10 @@ public class Display {
         }
     }
 
+    private enum Panel {
+        MAIN, MEDIA
+    }
+
     private enum MediaType {
         IMAGE, PRESENTATION, INSTAGRAM, MANUAL, TWITCH, YELP, VIDEO, TWITTER;
 
@@ -411,7 +480,7 @@ public class Display {
         double angle = Math.toRadians(rotation);
         double sin = Math.abs(Math.sin(angle)), cos = Math.abs(Math.cos(angle));
         int w = image.getWidth(null), h = image.getHeight(null);
-        int neww = (int)Math.floor(w*cos+h*sin), newh = (int) Math.floor(h * cos + w * sin);
+        int neww = (int) Math.floor(w * cos + h * sin), newh = (int) Math.floor(h * cos + w * sin);
         GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
         BufferedImage result = gc.createCompatibleImage(neww, newh, Transparency.TRANSLUCENT);
         Graphics2D g = result.createGraphics();
@@ -420,6 +489,55 @@ public class Display {
         g.drawImage(image, 0, 0, null);
         g.dispose();
         return result;
+    }
+
+    // Restart on JAR change
+    private void watchJar() {
+        try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
+            final File file = new File(Display.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            Path path = file.toPath().getParent();
+            path.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
+            while (true) {
+                WatchKey key;
+                try {
+                    key = watcher.poll(25, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    return;
+                }
+                if (key == null) {
+                    Thread.yield();
+                    continue;
+                }
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    WatchEvent.Kind<?> kind = event.kind();
+                    @SuppressWarnings("unchecked")
+                    WatchEvent<Path> ev = (WatchEvent<Path>) event;
+                    Path filename = ev.context();
+                    if (kind == StandardWatchEventKinds.OVERFLOW) {
+                        Thread.yield();
+                        continue;
+                    } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY && filename.toString().equals(file.getName())) {
+                        final String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+                        if (!file.getName().endsWith(".jar"))
+                            return;
+                        final ArrayList<String> command = new ArrayList<>();
+                        command.add(javaBin);
+                        command.add("-jar");
+                        command.add(file.getPath());
+                        final ProcessBuilder builder = new ProcessBuilder(command);
+                        builder.start();
+                        System.exit(0);
+                    }
+                    boolean valid = key.reset();
+                    if (!valid) {
+                        break;
+                    }
+                }
+                Thread.yield();
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     private boolean ping(String ipAddress) throws Exception {
