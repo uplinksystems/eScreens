@@ -1,11 +1,8 @@
 {
   // Per display config
   "config": {
-    "orientation": "horizontal",
-    "resolution": {
-      "width": 1280,
-      "height": 720
-    }
+    "name": "screen1",
+    "rotation": 0
   },
   // In case of missing files or mid download
   "fallback": {
@@ -15,46 +12,54 @@
   // Default mode and file when no events are active
   "defaults": [
     {
+      "name": "",
       "start_date_time": "0000000000",
       "type": "video",
       "media": "default.mp4"
     },
     {
+      "name": "",
       "start_date_time": "0612191945",
       "type": "image",
       "media": "default0.png"
     },
     {
+      "name": "",
       "start_date_time": "0723191430",
       "type": "image",
       "media": "default1.png"
     },
     {
+      "name": "",
       "start_date_time": "0921191135",
-      // Where manual interaction with interface controls active mode out of list
       "type": "manual",
       "media": [
         {
+          "name": "",
           "type": "image",
           "media": "manual.png"
         },
         {
+          "name": "",
           "type": "presentation",
           "media": "manual.pdf"
         }
       ]
     },
     {
+      "name": "",
       "start_date_time": "1021191135",
       "type": "twitch",
       "media": "put twitch url or something here"
     },
     {
+      "name": "",
       "start_date_time": "1121191135",
       "type": "yelp",
       "media": "put yelp url or something here"
     },
     {
+      "name": "",
       "start_date_time": "1221191135",
       "type": "instagram",
       "media": "put instagram url or something here"
@@ -63,6 +68,7 @@
   // Temporary changes from defaults when all conditions are met
   "events": [
     {
+      "name": "Test 1",
       "conditions": {
         "start_date_time": "0612192015",
         "end_date_time": "0713191200",
@@ -80,6 +86,7 @@
       "media": "event0.png"
     },
     {
+      "name": "Test 2",
       "conditions": {
         "start_date_time": "1012190000",
         "end_date_time": "1013190000",

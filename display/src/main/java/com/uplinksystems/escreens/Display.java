@@ -54,6 +54,7 @@ public class Display {
         NativeLibrary.addSearchPath("libvlc", "C:\\Program Files\\VideoLAN\\VLC");
         // Todo: add linux path
         //NativeLibrary.addSearchPath("libvlc", "");
+        Runtime.getRuntime().exec("sudo export DISPLAY=:0.0");
         largeFont = new Font("serif", Font.PLAIN, 128);
         events = new ArrayList<>();
         defaults = new ArrayList<>();
@@ -67,6 +68,18 @@ public class Display {
         new Thread(this::updatePings).start();
         new Thread(this::watchJar).start();
         new Thread(this::updateMedia).start();
+        // Forced repaints
+        new Thread(() -> {
+            while (true) {
+                frame.invalidate();
+                frame.repaint();
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
         //sendPutRequest("screen/screen1", "{\"language\":\"russian\", \"description\":\"yellow\"}");
         //sendGetRequest("screen/screen1");
         //sendPostRequest("media/test.zip", "test.zip");
@@ -263,7 +276,11 @@ public class Display {
                 System.exit(0);
             }
         });
+        frame.setResizable(true);
+        frame.getGraphicsConfiguration().getDevice().setFullScreenWindow(frame);
+        frame.setPreferredSize(frame.getGraphicsConfiguration().getBounds().getSize());
         switchPane(Panel.MAIN);
+        frame.pack();
         frame.setVisible(true);
         mediaPlayer.setVisible(false);
     }
