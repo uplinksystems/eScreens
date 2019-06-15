@@ -49,12 +49,13 @@ public class Display {
 
     private final String MEDIA_DIRECTORY = "";
     private final String CONFIG_FILE = "config.json";
+    private final String SERVER_IP = "";
 
     private Display() throws Exception {
         NativeLibrary.addSearchPath("libvlc", "C:\\Program Files\\VideoLAN\\VLC");
         // Todo: add linux path
         //NativeLibrary.addSearchPath("libvlc", "");
-        Runtime.getRuntime().exec("sudo export DISPLAY=:0.0");
+        //Runtime.getRuntime().exec("sudo export DISPLAY=:0.0");
         largeFont = new Font("serif", Font.PLAIN, 128);
         events = new ArrayList<>();
         defaults = new ArrayList<>();
@@ -143,6 +144,7 @@ public class Display {
                     e.printStackTrace();
                 }
             }
+            Runtime.getRuntime().exec("rsync -avzh pi@" + SERVER_IP + ":/home/pi/escreens/media /home/pi/escreens/media");
             Thread.sleep(300000); // For 5 minutes
         }
     }
