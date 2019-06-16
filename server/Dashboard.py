@@ -2,11 +2,12 @@ from flexx import flx
 
 main = None
 types = ['image', 'video', 'presentation', 'twitch', 'yelp', 'instagram', 'manual', 'countdown']
-screens =[]
-medias = []
 rotations = [0, 90, 180, 270]
 max_scheduled = 25 # Maximum scheduable content entries
 screen_num = 40 # Overestimate by a few, number to total displays
+screens =[]
+medias = []
+url = ''
 
 
 def ensure_str(s):
@@ -36,10 +37,16 @@ class Root(flx.Widget):
     def init(self):
         global main
         main = self
-        # Todo: catch errors if not connected
+        global url
+        url = window.location['origin']
+        print(url)
         self.update_screen_list()
         self.update_media_list()
         with flx.FormLayout():
+            with flx.HSplit():
+                self.logout = flx.Button(title='logout', text='Logout', flex=1)
+                flx.Widget(flex=5)
+                self.new_dashboard = flx.Button(title='new_dashboard', text='New Dashboard', flex=1)
             with flx.TabLayout(flex=5):
                 EditDisplay(title='Edit a Display')
                 Defaults(title='Modify Defaults')
@@ -47,17 +54,25 @@ class Root(flx.Widget):
                 System(title='System')
             self.edit_media = EditMedia(flex=2)
 
-    def send_request(self, type, url, data):
+    @flx.reaction('logout.pointer_click')
+    def log_out(self, *events):
+        window.location.href = url + '/logout'
+
+    @flx.reaction('new_dashboard.pointer_click')
+    def open_new_dashboard(self, *events):
+        window.location.href = url + '/dashboard'
+
+    def send_request(self, type, url, data, content_type='text/plain'):
         global window
         request = window.XMLHttpRequest()
+        request.withCredentials = True
         request.open(type, url, False)
-        request.setRequestHeader('Content-type', 'text/plain')  # application/json
-        request.setRequestHeader("Authorization", "Basic " + window.btoa("username:password"))
+        request.setRequestHeader('Content-type', content_type)  # application/json
         request.send(data)
         return request
 
     def update_screen_list(self):
-        request = self.send_request('GET', 'http://localhost:5000/screen', '')
+        request = self.send_request('GET', url + '/screen', '')
         if request.readyState == 4 and not request.status == 200:
             window.alert('Failed to load screen list. Code: ' + request.status + ', Response: ' + request.responseText)
             return
@@ -65,7 +80,7 @@ class Root(flx.Widget):
         screens = window.JSON.parse(request.responseText)
 
     def update_media_list(self):
-        request = self.send_request('GET', 'http://localhost:5000/media', '')
+        request = self.send_request('GET', url + '/media', '')
         if request.readyState == 4 and not request.status == 200:
             window.alert(
                 'Failed to load media list. Code: ' + request.status + ', Response: ' + request.responseText)
@@ -106,7 +121,7 @@ class EditDisplay(flx.Widget):
     @flx.reaction('name.user_selected')
     def _select_screen(self, *events):
         global window
-        request = main.send_request('GET', 'http://localhost:5000/screen/' + self.name.text, '')
+        request = main.send_request('GET', url + '/screen' + self.name.text, '')
         if request.readyState == 4 and not request.status == 200:
             window.alert('Failed to load config. Code: ' + request.status + ', Response: ' + request.responseText)
             return
@@ -145,7 +160,7 @@ class EditDisplay(flx.Widget):
             self.json['config']['rotation'] = int(self.rotation.text)
         data = window.JSON.stringify(self.json)
 
-        request = main.send_request('PUT', 'http://localhost:5000/screen/' + self.name.text, data)
+        request = main.send_request('PUT', url + '/screen/' + self.name.text, data)
         if request.readyState == 4 and not request.status == 200:
             window.alert('Failed to update config. Code: ' + request.status + ', Response: ' + request.responseText)
         else:
@@ -239,6 +254,7 @@ class EditMedia(flx.Widget):
 
     def init(self):
         with flx.FormLayout() as self.form:
+            self.browse = flx.Button(title='browse', text='Select Media File')
             self.name = flx.LineEdit(title='Name of Event:', text='')
             self.type = flx.ComboBox(title='Type of Media', options=types, selected_index=0)
             self.media = flx.ComboBox(title='Media File:', options=medias)
@@ -251,6 +267,22 @@ class EditMedia(flx.Widget):
         #self.name.set_disabled(not editable)
         #self.media.set_disabled(not editable)
         # self.type.set_editable(editable)
+
+    @flx.reaction('browse.pointer_click')
+    def on_browse(self, *events):
+        input = window.document.createElement('input')
+        input.type = 'file'
+        def on_select_file(e):
+            file = e.target.files[0]
+            formData = window.FormData()
+            formData.append('file', file)
+            request = window.XMLHttpRequest()
+            request.open('POST', url + '/' + file.name, False)
+            request.send(formData)
+            window.alert('Uploaded file')
+            main.update_media_list()
+        input.onchange = on_select_file
+        input.click()
 
 
 if __name__ == '__main__':
