@@ -26,7 +26,6 @@ import java.sql.Time;
 import java.time.DayOfWeek;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class Display {
 
@@ -46,16 +45,20 @@ public class Display {
     private JFrame frame;
     private EmbeddedMediaPlayerComponent mediaPlayer;
     private Panel currentPanel;
+    private String hash;
 
-    private final String MEDIA_DIRECTORY = "";
+    private final String MEDIA_DIRECTORY = "media/";
     private final String CONFIG_FILE = "config.json";
-    private final String SERVER_IP = "";
+    private final String SERVER_ADDRESS = "http://192.168.1.129:5001/";
+    private final String SERVER_IP = "192.168.1.129";
 
     private Display() throws Exception {
         NativeLibrary.addSearchPath("libvlc", "C:\\Program Files\\VideoLAN\\VLC");
         // Todo: add linux path
         //NativeLibrary.addSearchPath("libvlc", "");
         //Runtime.getRuntime().exec("sudo export DISPLAY=:0.0");
+        hash = getMD5();
+        System.out.println("Hash is: " + hash);
         largeFont = new Font("serif", Font.PLAIN, 128);
         events = new ArrayList<>();
         defaults = new ArrayList<>();
@@ -64,10 +67,9 @@ public class Display {
         loadedImages = new HashMap<>();
         width = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().getBounds().width;
         height = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().getBounds().height;
-        missingConfig = ImageIO.read(new File("missing_config.png"));
+        missingConfig = ImageIO.read(getClass().getResource("/missing_config.png"));
         dateTimeFormatter = DateTimeFormat.forPattern("MM/dd/yyyy HH:mm");
         new Thread(this::updatePings).start();
-        new Thread(this::watchJar).start();
         new Thread(this::updateMedia).start();
         // Forced repaints
         new Thread(() -> {
@@ -86,9 +88,18 @@ public class Display {
         //sendPostRequest("media/test.zip", "test.zip");
     }
 
+    // Gets the MD5 hash of the JAR
+    private String getMD5() throws Exception {
+        String md5;
+        try (InputStream is = Files.newInputStream(new File(Display.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toPath())) {
+            md5 = org.apache.commons.codec.digest.DigestUtils.md5Hex(is);
+            return md5;
+        }
+    }
+
+    // Check if media changed and refresh display
     private void updateMedia() {
         while (true) {
-            System.out.println(getCurrentMedia());
             try {
                 if (getCurrentMedia() != currentMedia) {
                     System.out.println("Invalidating");
@@ -105,6 +116,7 @@ public class Display {
         }
     }
 
+    // Handle updating config file, media, and the program
     private void configuration() throws Exception {
         if (!new File(CONFIG_FILE).exists()) {
             System.out.println("Config File is missing!");
@@ -116,6 +128,14 @@ public class Display {
         configured = true;
         frame.repaint();
         while (true) {
+            System.out.println("Updating JAR and media");
+            Runtime.getRuntime().exec("rsync -avzh pi@" + SERVER_IP + ":/home/pi/escreens/escreen.jar /home/pi/escreens").waitFor();
+            Runtime.getRuntime().exec("rsync -avzh pi@" + SERVER_IP + ":/home/pi/escreens/media /home/pi/escreens").waitFor();
+            if (!hash.equals(getMD5())) {
+                System.out.println("New hash is: " + getMD5());
+                System.out.println("Restarting...");
+                System.exit(0);
+            }
             String response = "";
             int attempts = 0;
             while (attempts < 4 && "".equals(response)) {
@@ -144,11 +164,12 @@ public class Display {
                     e.printStackTrace();
                 }
             }
-            Runtime.getRuntime().exec("rsync -avzh pi@" + SERVER_IP + ":/home/pi/escreens/media /home/pi/escreens/media");
-            Thread.sleep(300000); // For 5 minutes
+            // Update every 5 minutes
+            Thread.sleep(300000);
         }
     }
 
+    // Create thread to ping IPs in config
     private void updatePings() {
         while (true) {
             try {
@@ -239,10 +260,8 @@ public class Display {
         return new Time(Integer.valueOf(split[0]), Integer.valueOf(split[1]), 0);
     }
 
+    // Initialize all of the Swing components
     private void createGUI() {
-        //mainPanel.add(infoPanel, BorderLayout.NORTH);
-        //mainPanel.add(splitPane, BorderLayout.CENTER);
-        //splitPane.setResizeWeight(0.5f);
         frame = new JFrame();
         frame.getContentPane().setLayout(new CardLayout());
 
@@ -261,7 +280,6 @@ public class Display {
         JPanel mainPane = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
-                //super.paintComponent(g);
                 draw(g);
             }
         };
@@ -330,7 +348,7 @@ public class Display {
             switchPane(Panel.MAIN);
     }
 
-    void switchPane(Panel panel) {
+    private void switchPane(Panel panel) {
         ((CardLayout) frame.getContentPane().getLayout()).show(frame.getContentPane(), panel.name());
         currentPanel = panel;
     }
@@ -510,62 +528,13 @@ public class Display {
         return result;
     }
 
-    // Restart on JAR change
-    private void watchJar() {
-        try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
-            final File file = new File(Display.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-            Path path = file.toPath().getParent();
-            path.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
-            while (true) {
-                WatchKey key;
-                try {
-                    key = watcher.poll(25, TimeUnit.MILLISECONDS);
-                } catch (InterruptedException e) {
-                    return;
-                }
-                if (key == null) {
-                    Thread.yield();
-                    continue;
-                }
-                for (WatchEvent<?> event : key.pollEvents()) {
-                    WatchEvent.Kind<?> kind = event.kind();
-                    @SuppressWarnings("unchecked")
-                    WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                    Path filename = ev.context();
-                    if (kind == StandardWatchEventKinds.OVERFLOW) {
-                        Thread.yield();
-                        continue;
-                    } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY && filename.toString().equals(file.getName())) {
-                        final String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
-                        if (!file.getName().endsWith(".jar"))
-                            return;
-                        final ArrayList<String> command = new ArrayList<>();
-                        command.add(javaBin);
-                        command.add("-jar");
-                        command.add(file.getPath());
-                        final ProcessBuilder builder = new ProcessBuilder(command);
-                        builder.start();
-                        System.exit(0);
-                    }
-                    boolean valid = key.reset();
-                    if (!valid) {
-                        break;
-                    }
-                }
-                Thread.yield();
-            }
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
-    }
-
     private boolean ping(String ipAddress) throws Exception {
         InetAddress geek = InetAddress.getByName(ipAddress);
         return geek.isReachable(5000);
     }
 
     private String sendGetRequest(String url) throws Exception {
-        URL obj = new URL("http://localhost:5000/" + url);
+        URL obj = new URL(SERVER_ADDRESS + url);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
         con.setRequestMethod("GET");
         String encoding = Base64.getEncoder().encodeToString(("username:password").getBytes(StandardCharsets.UTF_8));
@@ -588,7 +557,7 @@ public class Display {
     }
 
     private String sendPutRequest(String url, String message) throws Exception {
-        URL obj = new URL("http://localhost:5000/" + url);
+        URL obj = new URL(SERVER_ADDRESS + url);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
         con.setRequestMethod("PUT");
         String encoding = Base64.getEncoder().encodeToString(("username:password").getBytes(StandardCharsets.UTF_8));
@@ -616,7 +585,7 @@ public class Display {
     }
 
     private String sendPostRequest(String url, String filename) throws Exception {
-        MultipartUtility multipart = new MultipartUtility("http://localhost:5000/" + url, "UTF-8");
+        MultipartUtility multipart = new MultipartUtility(SERVER_ADDRESS + url, "UTF-8");
         multipart.addFormField("description", "Media");
         multipart.addFormField("keywords", "Java,upload");
         multipart.addFilePart("file", new File(filename));

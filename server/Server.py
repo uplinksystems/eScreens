@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort
 from flask_restful import Resource, Api
-import json, os
+import json
+import os
 from flask_cors import CORS
 from flexx import flx
 import Dashboard
@@ -8,7 +9,6 @@ from functools import wraps
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-import base64
 
 
 app = Flask(__name__)
@@ -123,7 +123,7 @@ def get_media():
 class Screens(Resource):
     def get(self, screen):
         if not os.path.isfile(os.path.join(SCREEN_DIRECTORY, screen)):
-            return 402
+            abort(402)
         with open(os.path.join(SCREEN_DIRECTORY, screen)) as json_file:
             data = json.load(json_file)
             return jsonify(data)
@@ -136,20 +136,19 @@ class Screens(Resource):
         return '(Put some sort of confirmation here)'
 
 
+class Update(Resource):
+    def post(self):
+        #if not 'user' in session:
+        #    abort(401)
+        file = request.files['file']
+        file.save('escreen.jar')
+        return '(Put some sort of confirmation here)'
+
+
 class Media(Resource):
     def post(self, filename):
         #if not 'user' in session:
         #    abort(401)
-        #print(request.form)
-        #print(request.files)
-        #print(request.headers)
-        #print(request.json)
-        #b64_string = request.form['file']
-        #with open(os.path.join(MEDIA_DIRECTORY, filename), 'wb') as fh:
-        #    b64_string += '=' * (-len(b64_string) % 4)
-        #    print(b64_string)
-        #    fh.write(base64.decodebytes(b64_string.encode()))
-
         file = request.files['file']
         file.save(os.path.join(MEDIA_DIRECTORY, filename))
         return '(Put some sort of confirmation here)'
@@ -163,6 +162,7 @@ class Media(Resource):
 
 api.add_resource(Screens, '/screen/<string:screen>')
 api.add_resource(Media, '/media/<string:filename>')
+api.add_resource(Update, '/update')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5001)

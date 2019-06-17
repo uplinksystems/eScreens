@@ -11,6 +11,15 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    main {
+        resources {
+            srcDirs "src/main/resources"
+        }
+    }
+}
+
+
 dependencies {
     compile group: 'joda-time', name: 'joda-time', version: '2.10.2'
     compile group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1.1'
@@ -22,6 +31,9 @@ dependencies {
 }
 
 jar {
+    configurations {
+        jar.archiveName = 'escreen.jar'
+    }
     manifest {
         attributes "Main-Class": "com.uplinksystems.escreens.Display"
     }

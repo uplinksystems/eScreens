@@ -71,6 +71,13 @@ class Root(flx.Widget):
         request.send(data)
         return request
 
+    def upload_file(self, url, file):
+        formData = window.FormData()
+        formData.append('file', file)
+        request = window.XMLHttpRequest()
+        request.open('POST', url, False)
+        request.send(formData)
+
     def update_screen_list(self):
         request = self.send_request('GET', url + '/screen', '')
         if request.readyState == 4 and not request.status == 200:
@@ -239,8 +246,23 @@ class System(flx.Widget):
 
     def init(self):
         with flx.FormLayout() as self.form:
-            flx.Button(title='')
+            self.update_button = flx.Button(text='Update JAR')
 
+    @flx.reaction('update_button.pointer_click')
+    def on_browse(self, *events):
+        input = window.document.createElement('input')
+        input.type = 'file'
+
+        def on_select_file(e):
+            file = e.target.files[0]
+            main.upload_file(url + '/update', file)
+            window.alert('Uploaded file')
+            # update media after 1 second
+            main.update_media_list()
+            self.media.set_options(medias)
+
+        input.onchange = on_select_file
+        input.click()
 
 class EditMedia(flx.Widget):
     CSS = """
@@ -254,7 +276,7 @@ class EditMedia(flx.Widget):
 
     def init(self):
         with flx.FormLayout() as self.form:
-            self.browse = flx.Button(title='browse', text='Select Media File')
+            self.browse = flx.Button(text='Select Media File to Upload')
             self.name = flx.LineEdit(title='Name of Event:', text='')
             self.type = flx.ComboBox(title='Type of Media', options=types, selected_index=0)
             self.media = flx.ComboBox(title='Media File:', options=medias)
@@ -272,15 +294,14 @@ class EditMedia(flx.Widget):
     def on_browse(self, *events):
         input = window.document.createElement('input')
         input.type = 'file'
+
         def on_select_file(e):
             file = e.target.files[0]
-            formData = window.FormData()
-            formData.append('file', file)
-            request = window.XMLHttpRequest()
-            request.open('POST', url + '/' + file.name, False)
-            request.send(formData)
+            main.upload_file(url + '/media/' + file.name, file)
             window.alert('Uploaded file')
+            # update media after 1 second
             main.update_media_list()
+            self.media.set_options(medias)
         input.onchange = on_select_file
         input.click()
 
