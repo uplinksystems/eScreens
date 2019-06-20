@@ -4,11 +4,13 @@ import json
 import os
 from flask_cors import CORS
 from flexx import flx
+import OldDashboard
 import Dashboard
 from functools import wraps
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from werkzeug.serving import run_simple
+import dash_bootstrap_components as dbc
+from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
 
 
 app = Flask(__name__)
@@ -16,19 +18,15 @@ app.config.from_pyfile('config.cfg')
 CORS(app)
 api = Api(app)
 
-MEDIA_DIRECTORY = os.path.join(os.path.dirname(__file__), 'media')
-SCREEN_DIRECTORY = os.path.join(os.path.dirname(__file__), 'screen')
-
 # Ensure directory exists
 os.makedirs(MEDIA_DIRECTORY, exist_ok=True)
 os.makedirs(SCREEN_DIRECTORY, exist_ok=True)
 
 # Initialize Dashboard
-a = flx.App(Dashboard.Root, title='Display Dashboard')
+a = flx.App(OldDashboard.Root, title='Display Dashboard')
 assets = a.dump('index.html', link=0)
 
 
-# A function
 def login_required(func):
     @wraps(func)
     def decorated_view(*args, **kwargs):
@@ -45,26 +43,16 @@ def _protect_dash_views(dash_app):
             dash_app.server.view_functions[view_func] = login_required(dash_app.server.view_functions[view_func])
 
 
-dash_app = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')
-dash_app.layout = html.Div([
-    html.H1('Stock Tickers'),
-    dcc.Dropdown(
-        id='my-dropdown',
-        options=[
-            {'label': 'Coke', 'value': 'COKE'},
-            {'label': 'Tesla', 'value': 'TSLA'},
-            {'label': 'Apple', 'value': 'AAPL'}
-        ],
-        value='COKE'
-    ),
-    dcc.Graph(id='my-graph')
-], style={'width': '500'})
+external_stylesheets = [dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css', 'https://codepen.io/chriddyp/pen/brPBPO.css']
+dash_app = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/', external_stylesheets=external_stylesheets)
+dash_app.config['suppress_callback_exceptions']=True
+dash_app.layout = Dashboard.layout
 _protect_dash_views(dash_app)
+Dashboard.register_callbacks(dash_app)
 
 
 @app.route('/')
 def dashboard():
-    print(request.headers)
     if 'login' in session:
         return assets['index.html'].decode()
     return render_template('login.html')
@@ -73,9 +61,9 @@ def dashboard():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form['username'] == 'username' and request.form['password'] == 'password':
+        if request.form['username'].lower() == 'username' and request.form['password'].lower() == 'password':
             session['login'] = 'user'
-        elif request.form['username'] == 'admin' and request.form['password'] == 'admin':
+        elif request.form['username'].lower() == 'admin' and request.form['password'].lower() == 'admin':
             session['login'] = 'admin'
         if not 'login' in session:
             flash('Invalid Credentials')
@@ -90,34 +78,17 @@ def logout():
 
 @app.route('/auth')
 def get_auth():
-   return 'login' in session
+   return session.get('login', '')
 
 
 @app.route('/screen')
-def get_screens():
-    files = []
-    for filename in os.listdir(SCREEN_DIRECTORY):
-        path = os.path.join(SCREEN_DIRECTORY, filename)
-        if os.path.isfile(path):
-            files.append(filename)
-    return jsonify(files)
+def get_screens_json():
+    return jsonify(get_screens())
 
 
 @app.route('/media')
-def get_media():
-    files = []
-    for filename in os.listdir(MEDIA_DIRECTORY):
-        path = os.path.join(MEDIA_DIRECTORY, filename)
-        if os.path.isfile(path):
-            if filename.endswith('_horizontal'):
-                if not filename[:-11] in files:
-                    files.append(filename[:-11])
-            elif filename.endswith('_vertical'):
-                if not filename[:-9] in files:
-                    files.append(filename[:-9])
-            else:
-                files.append(filename)
-    return jsonify(files)
+def get_media_json():
+    return jsonify(get_screens())
 
 
 class Screens(Resource):
@@ -129,7 +100,7 @@ class Screens(Resource):
             return jsonify(data)
 
     def put(self, screen):
-        if not 'user' in session:
+        if 'login' not in session:
             abort(401)
         with open(os.path.join(SCREEN_DIRECTORY, screen), 'w') as json_file:
             json.dump(request.get_json(force=True), json_file)
@@ -138,8 +109,8 @@ class Screens(Resource):
 
 class Update(Resource):
     def post(self):
-        #if not 'user' in session:
-        #    abort(401)
+        if not session.get('login', '') == 'admin':
+            abort(401)
         file = request.files['file']
         file.save('escreen.jar')
         return '(Put some sort of confirmation here)'
@@ -147,8 +118,8 @@ class Update(Resource):
 
 class Media(Resource):
     def post(self, filename):
-        #if not 'user' in session:
-        #    abort(401)
+        if 'login' not in session:
+            abort(401)
         file = request.files['file']
         file.save(os.path.join(MEDIA_DIRECTORY, filename))
         return '(Put some sort of confirmation here)'

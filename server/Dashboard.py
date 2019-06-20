@@ -1,312 +1,283 @@
-from flexx import flx
-
-main = None
-types = ['image', 'video', 'presentation', 'twitch', 'yelp', 'instagram', 'manual', 'countdown']
-rotations = [0, 90, 180, 270]
-max_scheduled = 25 # Maximum scheduable content entries
-screen_num = 40 # Overestimate by a few, number to total displays
-screens =[]
-medias = []
-url = ''
-
-
-def ensure_str(s):
-    if isinstance(s, str):
-        return s
-    return ''
-
-
-def ensure_int(number, default_value=0):
-    if isinstance(number, int):
-        return number
-    return default_value
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
+import dash
+import base64
+import dash_dangerously_set_inner_html
+import dash_bootstrap_components as dbc
+from flask import session
+import os
+import json
+import requests
+import re
+from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
+from urllib.parse import urlparse
 
 
-class Root(flx.Widget):
-    CSS = """
-    .flx-Button {
-        background: #9d9;
-    }
-    .flx-LineEdit {
-        border: 2px solid #9d9;
-    }
-    """
-
-    screens = []
-
-    def init(self):
-        global main
-        main = self
-        global url
-        url = window.location['origin']
-        print(url)
-        self.update_screen_list()
-        self.update_media_list()
-        with flx.FormLayout():
-            with flx.HSplit():
-                self.logout = flx.Button(title='logout', text='Logout', flex=1)
-                flx.Widget(flex=5)
-                self.new_dashboard = flx.Button(title='new_dashboard', text='New Dashboard', flex=1)
-            with flx.TabLayout(flex=5):
-                EditDisplay(title='Edit a Display')
-                Defaults(title='Modify Defaults')
-                Events(title='Modify Events')
-                System(title='System')
-            self.edit_media = EditMedia(flex=2)
-
-    @flx.reaction('logout.pointer_click')
-    def log_out(self, *events):
-        window.location.href = url + '/logout'
-
-    @flx.reaction('new_dashboard.pointer_click')
-    def open_new_dashboard(self, *events):
-        window.location.href = url + '/dashboard'
-
-    def send_request(self, type, url, data, content_type='text/plain'):
-        global window
-        request = window.XMLHttpRequest()
-        request.withCredentials = True
-        request.open(type, url, False)
-        request.setRequestHeader('Content-type', content_type)  # application/json
-        request.send(data)
-        return request
-
-    def upload_file(self, url, file):
-        formData = window.FormData()
-        formData.append('file', file)
-        request = window.XMLHttpRequest()
-        request.open('POST', url, False)
-        request.send(formData)
-
-    def update_screen_list(self):
-        request = self.send_request('GET', url + '/screen', '')
-        if request.readyState == 4 and not request.status == 200:
-            window.alert('Failed to load screen list. Code: ' + request.status + ', Response: ' + request.responseText)
-            return
-        global screens
-        screens = window.JSON.parse(request.responseText)
-
-    def update_media_list(self):
-        request = self.send_request('GET', url + '/media', '')
-        if request.readyState == 4 and not request.status == 200:
-            window.alert(
-                'Failed to load media list. Code: ' + request.status + ', Response: ' + request.responseText)
-            return
-        global medias
-        medias = window.JSON.parse(request.responseText)
+# Save a file uploaded with the Upload component
+def save_file(name, content):
+    data = base64.b64decode(content.split(',')[1])
+    with open(name, 'wb') as fp:
+        fp.write(data)
 
 
-class EditDisplay(flx.Widget):
-    CSS = """
-    .flx-Button {
-        background: #9d9;
-    }
-    .flx-LineEdit {
-        border: 2px solid #9d9;
-    }
-    """
-
-    def init(self):
-        self.json = None
-        with flx.FormLayout() as self.form:
-            self.name = flx.ComboBox(title='Display Name:', options=screens)
-            self.rotation = flx.ComboBox(title='Rotation:', options=rotations)
-            flx.Widget(flex=1)
-            with flx.TreeWidget(flex=2, title='Defaults:', max_selected = 1):
-                self.defaults = []
-                for i in range(max_scheduled):
-                    self.defaults[i] = flx.TreeItem(title=str(i), checked=False)
-                    self.defaults[i].set_visible(False)
-            with flx.TreeWidget(flex=2, title='Events:', max_selected = 1):
-                self.events = []
-                for i in range(max_scheduled):
-                    self.events[i] = flx.TreeItem(title=str(i), checked=False)
-                    self.events[i].set_visible(False)
-            self.upload = flx.Button(text='Save and Upload')
-            flx.Widget(flex=5)
-
-    @flx.reaction('name.user_selected')
-    def _select_screen(self, *events):
-        global window
-        request = main.send_request('GET', url + '/screen' + self.name.text, '')
-        if request.readyState == 4 and not request.status == 200:
-            window.alert('Failed to load config. Code: ' + request.status + ', Response: ' + request.responseText)
-            return
-        self.json = window.JSON.parse(request.responseText)
-        print(window.JSON.stringify(self.json))
-        self.rotation.set_selected_index(rotations.index((self.json['config']['rotation'])))
-        main.edit_media.show_media(self.json['fallback'], False)
-        for i in range(max_scheduled):
-            self.defaults[i].set_visible(False)
-        i = 0
-        for media in self.json['defaults']:
-            self.defaults[i].set__visible(True)
-            self.defaults[i].set_text('a')
-            i = i + 1
+# Returns True if string contains disallowed characters
+def invalid_str(s):
+    return re.findall(r'[^A-Za-z0-9_\-\\]', s)
 
 
-    @flx.reaction('upload.pointer_click')
-    def _upload(self, *events):
-        global window
-        if not self.rotation.text.isdigit():
-            window.alert('Invalid values')
-            return
-        if self.json is None:
-            if window.confirm(
-                    'Are you sure you want to push this file? If you forgot to pull, this will overwrite the existing file and erase the existing schedule.'):
-                self.json = {'config': {'name': self.name.text, 'rotation': int(self.rotation.text)}, 'defaults': [],
-                             'events': [],
-                             'fallback': {'name': 'fallback', 'type': 'image', 'media': 'fallback.png'}}
+def rotation_dropdown():
+    return html.Div([
+        html.H5('Counter-clockwise Rotation:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Dropdown(id='rotation_dropdown', options=[{'label': str(i * 90), 'value': i * 90} for i in range(4)],
+                     value=0, style={'display': 'inline-block', 'width': '20%'})
+    ])
+
+
+def media_dropdown():
+    medias = [{'label': media, 'value': media} for media in get_media()]
+    return html.Div([
+        html.H5('Media File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Dropdown(id='media_dropdown', options=medias, value=medias[0]['value'],
+                     style={'display': 'inline-block', 'width': '60%'})
+    ])
+
+
+def media_types_dropdown():
+    return html.Div([
+        html.H5('Media Type:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Dropdown(id='screen_dropdown', options=[{'label': type, 'value': type} for type in
+                                                    (['image', 'video', 'presentation', 'twitch', 'yelp', 'instagram',
+                                                      'manual', 'countdown'] if session['login'] == 'admin' else [
+                                                        'image', 'video'])],
+                     value='image', style={'display': 'inline-block', 'width': '30%'})
+    ])
+
+
+def screen_dropdown():
+    screens = [{'label': screen, 'value': screen} for screen in get_screens()]
+    return html.Div([
+        html.H5('Screens:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Dropdown(id='screen_dropdown', options=screens, multi=True,
+                     style={'display': 'inline-block', 'width': '80%'})
+    ])
+
+
+# The group of components for adding new defaults
+def add_defaults_screen():
+    return html.Div([
+        dcc.Upload(
+            id='upload-media-files',
+            children=html.Div([
+                'Drag and Drop or ',
+                html.A('Select media files')
+            ]),
+            style={
+                'width': '100%',
+                'height': '60px',
+                'lineHeight': '60px',
+                'borderWidth': '1px',
+                'borderStyle': 'dashed',
+                'borderRadius': '5px',
+                'textAlign': 'center',
+                'margin': '10px'
+            },
+            multiple=True
+        ),
+        html.H4('Selected Media:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H4('', id='selected-media', style={'display': 'inline-block'}),
+        html.Div(html.Button('Upload media', id='upload-media-button')),
+        media_types_dropdown(),
+        media_dropdown(),
+        screen_dropdown()
+    ])
+
+
+# Dashboard layout
+layout = html.Div([
+    # Header
+    html.H1('Display System Dashboard', style={'display': 'inline'}),
+    html.A(html.Button('Logout'), href='/logout', style={'float': 'right', 'display': 'inline'}),
+
+    # Alerts
+    dbc.Alert('', id='jar-alert', color='primary', dismissable=True, is_open=False),
+    dbc.Alert('', id='create-screen-alert', color='primary', dismissable=True, is_open=False),
+    dbc.Alert('', id='upload-media-alert', color='primary', dismissable=True, is_open=False),
+
+    # Main content
+    html.Div(id='main-content'),
+
+    # "Global" data
+    html.Div(id='json', style={'display': 'none'}),
+    dcc.Location('location')
+
+], style={'width': '500'})
+
+
+# Setup all event handling and chaining
+def register_callbacks(app):
+    @app.callback(Output('main-content', 'children'),
+                  [Input('location', 'href')])  # Could be changed to a different callback input, just for drawing page
+    def render_content(url):
+        if not url:
+            raise PreventUpdate
+        return [dcc.Tabs(id='tabs', value='tab-add', children=[
+            dcc.Tab(label='Add', value='tab-add'),
+            dcc.Tab(label='Event', value='tab-event'),
+            dcc.Tab(label='Edit', value='tab-edit'),
+            dcc.Tab(label='System', value='tab-system')
+        ]), html.Div(id='tabs-content')
+                ] if session['login'] == 'admin' else add_defaults_screen()
+
+    # Render selected tab's content
+    @app.callback(Output('tabs-content', 'children'),
+                  [Input('tabs', 'value')])
+    def render_tab_content(tab):
+        if tab == 'tab-add':
+            return add_defaults_screen()
+
+        # Event tab
+        elif tab == 'tab-event':
+            return html.Div([
+                html.H3('Tab content 2')
+            ])
+
+        # Edit tab
+        elif tab == 'tab-edit':
+            return html.Div([
+                html.H3('Tab content 2')
+            ])
+
+        # System tab
+        elif tab == 'tab-system':
+            return html.Div([
+                dcc.Upload(
+                    id='upload-jar-file',
+                    children=html.Div([
+                        'Drag and Drop or ',
+                        html.A('Select JAR file')
+                    ]),
+                    style={
+                        'width': '100%',
+                        'height': '60px',
+                        'lineHeight': '60px',
+                        'borderWidth': '1px',
+                        'borderStyle': 'dashed',
+                        'borderRadius': '5px',
+                        'textAlign': 'center',
+                        'margin': '10px'
+                    },
+                    multiple=False,
+                    accept='.jar'
+                ),
+                html.H4('Selected File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+                html.H4('', id='selected-file', style={'display': 'inline-block'}),
+                dcc.ConfirmDialogProvider(children=html.Button('Upload JAR'), id='upload-jar-button',
+                                          message='Warning: If you upload an invalid update file, this will brick the whole system'),
+                html.H3('Add New Display'),
+                html.H4('Display Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
+                dcc.Input(id='display-name', style={'display': 'inline-block'}),
+                rotation_dropdown(),
+                html.Button('Add Display', id='add-display-button')
+            ])
+
+    #@app.callback(Output('selected-media', 'children'),
+    #              [Input('upload-media-files', 'filename')])
+    #def handle_upload_images(filenames):
+    #    pass
+
+    # Display selected media file names
+    @app.callback(Output('selected-media', 'children'),
+                  [Input('upload-media-files', 'filename')])
+    def select_file(filenames):
+        if filenames is None:
+            return ''
+        selected = '\''
+        for file in filenames:
+            selected = selected + file
+            selected = selected + '\', \''
+        selected = selected[:-3]
+        return selected
+
+    # Upload selected media
+    @app.callback(
+        [Output('upload-media-alert', 'is_open'),
+         Output('upload-media-alert', 'children'),
+         Output('upload-media-alert', 'color'),
+         Output('upload-media-files', 'filename')],
+        [Input('upload-media-button', 'n_clicks')],
+        [State('upload-media-files', 'filename'),
+         State('upload-media-files', 'contents')]
+    )
+    def upload_media(n_clicks, filenames, contents):
+        if not n_clicks:
+            raise PreventUpdate
+        if filenames is not None and contents is not None:
+            for name, content in zip(filenames, contents):
+                try:
+                    save_file(os.path.join(MEDIA_DIRECTORY, name), content)
+                except Exception as e:
+                    print(e)
+                    return [True, 'Failed to upload media', 'danger', filenames]
         else:
-            if not self.name.text == self.json['config']['name'] and not window.confirm('Are you sure you want to create a new config file? You cannot change the name of a display without modifying the display itself'):
-                return
-            if self.name.text.search(window.RegExp(r'[^A-Za-z0-9_\-\\]','g')) != -1:
-                window.alert('Invalid display name')
-                return
-            self.json['config']['name'] = self.name.text
-            self.json['config']['rotation'] = int(self.rotation.text)
-        data = window.JSON.stringify(self.json)
+            return [True, 'Select media files first', 'warning', filenames]
+        return [True, 'Uploaded media files. Displays will syncronize within 5 minutes', 'success', None]
 
-        request = main.send_request('PUT', url + '/screen/' + self.name.text, data)
-        if request.readyState == 4 and not request.status == 200:
-            window.alert('Failed to update config. Code: ' + request.status + ', Response: ' + request.responseText)
+    # Show selected update file name
+    @app.callback(Output('selected-file', 'children'),
+                  [Input('upload-jar-file', 'filename')])
+    def select_file(filename):
+        if filename is None:
+            return ''
         else:
-            window.alert('Successfully updated or added config file for display')
+            return filename
 
+    # Upload update file
+    @app.callback(
+        [Output('jar-alert', 'is_open'),
+         Output('jar-alert', 'children'),
+         Output('jar-alert', 'color')],
+        [Input('upload-jar-button', 'submit_n_clicks')],
+        [State('upload-jar-file', 'filename'),
+         State('upload-jar-file', 'contents')]
+    )
+    def upload_jar(submit_n_clicks, filename, content):
+        if not submit_n_clicks:
+            raise PreventUpdate
+        if filename is not None and content is not None:
+            if not filename.endswith('.jar'):
+                return [True, 'This has to be a jar file', 'warning']
+            try:
+                save_file('escreen.jar', content)
+            except Exception as e:
+                print(e)
+                return [True, 'Failed to update JAR', 'danger']
+        else:
+            return [True, 'Select a JAR file first', 'secondary']
+        return [True, 'Uploaded JAR file. Displays will update within 5 minutes', 'success']
 
-class Events(flx.Widget):
-    CSS = """
-    .flx-Button {
-        background: #9d9;
-    }
-    .flx-LineEdit {
-        border: 2px solid #9d9;
-    }
-    """
-
-    def init(self):
-        with flx.TreeWidget(flex=2, title='Events:'):
-            self.events = []
-            for i in range(max_scheduled):
-                self.events[i] = flx.TreeItem(title=str(i), checked=False)
-                self.events[i].set_visible(False)
-
-
-class Defaults(flx.Widget):
-    CSS = """
-    .flx-Button {
-        background: #9d9;
-    }
-    .flx-LineEdit {
-        border: 2px solid #9d9;
-    }
-    """
-
-    def init(self):
-        with flx.FormLayout():
-            with flx.TreeWidget(flex=2, title='Defaults:'):
-                self.defaults = []
-                for i in range(max_scheduled):
-                    self.defaults[i] = flx.TreeItem(checked=False)
-                    self.defaults[i].set_visible(False)
-            flx.Widget(flex=1)
-            with flx.TreeWidget(title='Screens', max_selected=0) as self.screens:
-                self.screens = []
-                for i in range(screen_num):
-                    self.screens[i] = flx.TreeItem(checked=False)
-                    self.screens[i].set_visible(False)
-                self.update_screens()
-            self.add_button = flx.Button(text='Add New Default')
-
-    @flx.reaction('add_button.pointer_click')
-    def set_screens(self, *events):
-        self.update_screens()
-
-    def update_screens(self):
-        i = 0
-        for screen in screens:
-            self.screens[i].set_visible(True)
-            self.screens[i].set_text(screen)
-            i = i + 1
-
-    @flx.reaction('add_button.pointer_click')
-    def add_default(self, *events):
-        pass
-
-
-class System(flx.Widget):
-    CSS = """
-    .flx-Button {
-        background: #9d9;
-    }
-    .flx-LineEdit {
-        border: 2px solid #9d9;
-    }
-    """
-
-    def init(self):
-        with flx.FormLayout() as self.form:
-            self.update_button = flx.Button(text='Update JAR')
-
-    @flx.reaction('update_button.pointer_click')
-    def on_browse(self, *events):
-        input = window.document.createElement('input')
-        input.type = 'file'
-
-        def on_select_file(e):
-            file = e.target.files[0]
-            main.upload_file(url + '/update', file)
-            window.alert('Uploaded file')
-            # update media after 1 second
-            main.update_media_list()
-            self.media.set_options(medias)
-
-        input.onchange = on_select_file
-        input.click()
-
-class EditMedia(flx.Widget):
-    CSS = """
-    .flx-Button {
-        background: #9d9;
-    }
-    .flx-LineEdit {
-        border: 2px solid #9d9;
-    }
-    """
-
-    def init(self):
-        with flx.FormLayout() as self.form:
-            self.browse = flx.Button(text='Select Media File to Upload')
-            self.name = flx.LineEdit(title='Name of Event:', text='')
-            self.type = flx.ComboBox(title='Type of Media', options=types, selected_index=0)
-            self.media = flx.ComboBox(title='Media File:', options=medias)
-            # flx.Widget(flex=3)
-
-    def show_media(self, media, editable):
-        self.name.set_text(media['name'])
-        self.type.set_selected_index(types.index(media['type']))
-        self.media.set_text(media['media'])
-        #self.name.set_disabled(not editable)
-        #self.media.set_disabled(not editable)
-        # self.type.set_editable(editable)
-
-    @flx.reaction('browse.pointer_click')
-    def on_browse(self, *events):
-        input = window.document.createElement('input')
-        input.type = 'file'
-
-        def on_select_file(e):
-            file = e.target.files[0]
-            main.upload_file(url + '/media/' + file.name, file)
-            window.alert('Uploaded file')
-            # update media after 1 second
-            main.update_media_list()
-            self.media.set_options(medias)
-        input.onchange = on_select_file
-        input.click()
-
-
-if __name__ == '__main__':
-    a = flx.App(Root, title='Display interface')
-    m = a.launch()
-    flx.run()
+    # Add a new display
+    @app.callback([Output('create-screen-alert', 'is_open'),
+                   Output('create-screen-alert', 'children'),
+                   Output('create-screen-alert', 'color')],
+                  [Input('add-display-button', 'n_clicks')],
+                  [State('display-name', 'value'),
+                   State('rotation_dropdown', 'value')])
+    def add_display(n_clicks, name, rotation):
+        if not n_clicks:
+            raise PreventUpdate
+        if not name:
+            return [True, 'A screen name is required', 'secondary']
+        if invalid_str(name):
+            return [True, 'Invalid screen name', 'warning']
+        screen_json = {'config': {'name': name, 'rotation': rotation}, 'defaults': [],
+                       'events': [],
+                       'fallback': {'name': 'fallback', 'type': 'image', 'media': 'fallback.png'}}
+        try:
+            with open(os.path.join(SCREEN_DIRECTORY, name), 'w') as json_file:
+                json.dump(screen_json, json_file)
+        except Exception as e:
+            print(e)
+            return [True, 'Failed create screen', 'danger']
+        return [True, 'Successfully created screen', 'success']

@@ -8,6 +8,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import uk.co.caprica.vlcj.component.EmbeddedMediaPlayerComponent;
 
 import javax.imageio.ImageIO;
@@ -46,17 +47,26 @@ public class Display {
     private EmbeddedMediaPlayerComponent mediaPlayer;
     private Panel currentPanel;
     private String hash;
+    private boolean isProduction;
 
     private final String MEDIA_DIRECTORY = "media/";
     private final String CONFIG_FILE = "config.json";
     private final String SERVER_ADDRESS = "http://192.168.1.129:5001/";
     private final String SERVER_IP = "192.168.1.129";
+    private final int CONFIG_UPDATE_INTERVAL = 300000; // Every 5 minutes
+
+    public static void main(String[] args) throws Exception {
+        // Wait for display
+        while (GraphicsEnvironment.isHeadless());
+        Thread.sleep(4000);
+        Display display = new Display();
+        SwingUtilities.invokeLater(display::createGUI);
+        display.configuration();
+    }
 
     private Display() throws Exception {
         NativeLibrary.addSearchPath("libvlc", "C:\\Program Files\\VideoLAN\\VLC");
-        // Todo: add linux path
-        //NativeLibrary.addSearchPath("libvlc", "");
-        //Runtime.getRuntime().exec("sudo export DISPLAY=:0.0");
+        isProduction = "jar".equals(getClass().getResource("").getProtocol());
         hash = getMD5();
         System.out.println("Hash is: " + hash);
         largeFont = new Font("serif", Font.PLAIN, 128);
@@ -70,19 +80,20 @@ public class Display {
         missingConfig = ImageIO.read(getClass().getResource("/missing_config.png"));
         dateTimeFormatter = DateTimeFormat.forPattern("MM/dd/yyyy HH:mm");
         new Thread(this::updatePings).start();
-        new Thread(this::updateMedia).start();
         // Forced repaints
-        new Thread(() -> {
+        /*new Thread(() -> {
             while (true) {
-                frame.invalidate();
-                frame.repaint();
+                if (frame != null) {
+                    frame.invalidate();
+                    frame.repaint();
+                }
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-        }).start();
+        }).start();*/
         //sendPutRequest("screen/screen1", "{\"language\":\"russian\", \"description\":\"yellow\"}");
         //sendGetRequest("screen/screen1");
         //sendPostRequest("media/test.zip", "test.zip");
@@ -90,6 +101,8 @@ public class Display {
 
     // Gets the MD5 hash of the JAR
     private String getMD5() throws Exception {
+        if (!isProduction)
+            return "";
         String md5;
         try (InputStream is = Files.newInputStream(new File(Display.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toPath())) {
             md5 = org.apache.commons.codec.digest.DigestUtils.md5Hex(is);
@@ -101,12 +114,13 @@ public class Display {
     private void updateMedia() {
         while (true) {
             try {
-                if (getCurrentMedia() != currentMedia) {
+                if (getCurrentMedia() != currentMedia && frame != null && frame.isVisible()) {
                     System.out.println("Invalidating");
                     currentMedia = getCurrentMedia();
                     switchPane(currentMedia.type);
-                    frame.invalidate();
-                    frame.repaint();
+                    // Todo: Check if invalidation is necessary
+                    //frame.invalidate();
+                    SwingUtilities.invokeLater(() -> frame.repaint());
                     //frame.validate();
                 }
                 Thread.sleep(1000);
@@ -123,18 +137,26 @@ public class Display {
             return;
         }
         JSONParser parser = new JSONParser();
-        json = (JSONObject) parser.parse(new FileReader(CONFIG_FILE));
+        try {
+            json = (JSONObject) parser.parse(new FileReader(CONFIG_FILE));
+        } catch (ParseException e) {
+            System.out.println("Failed to parse config file, game over.");
+            return;
+        }
         parseJSON();
         configured = true;
-        frame.repaint();
+        SwingUtilities.invokeLater(() -> frame.repaint());
+        new Thread(this::updateMedia).start();
         while (true) {
-            System.out.println("Updating JAR and media");
-            Runtime.getRuntime().exec("rsync -avzh pi@" + SERVER_IP + ":/home/pi/escreens/escreen.jar /home/pi/escreens").waitFor();
-            Runtime.getRuntime().exec("rsync -avzh pi@" + SERVER_IP + ":/home/pi/escreens/media /home/pi/escreens").waitFor();
-            if (!hash.equals(getMD5())) {
-                System.out.println("New hash is: " + getMD5());
-                System.out.println("Restarting...");
-                System.exit(0);
+            if (isProduction) {
+                System.out.println("Updating JAR and media");
+                Runtime.getRuntime().exec("rsync -e 'ssh -o StrictHostKeyChecking=no' -avzh pi@" + SERVER_IP + ":/home/pi/escreens/escreen.jar /home/pi/escreens").waitFor();
+                Runtime.getRuntime().exec("rsync -e 'ssh -o StrictHostKeyChecking=no' -avzh pi@" + SERVER_IP + ":/home/pi/escreens/media /home/pi/escreens").waitFor();
+                if (!hash.equals(getMD5())) {
+                    System.out.println("New hash is: " + getMD5());
+                    System.out.println("Restarting...");
+                    System.exit(0);
+                }
             }
             String response = "";
             int attempts = 0;
@@ -160,12 +182,11 @@ public class Display {
                     } else {
                         System.out.println("JSON file was up to date");
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                } catch (ParseException e) {
+                    System.out.println("Couldn't parse received JSON file: " + response);
                 }
             }
-            // Update every 5 minutes
-            Thread.sleep(300000);
+            Thread.sleep(CONFIG_UPDATE_INTERVAL);
         }
     }
 
@@ -274,7 +295,7 @@ public class Display {
             @Override
             public void paintComponents(Graphics g) {
                 super.paintComponents(g);
-                System.out.println("REPAINT");
+                System.out.println("REPAINT PLAYER");
             }
         };
         JPanel mainPane = new JPanel() {
@@ -315,22 +336,23 @@ public class Display {
             return;
         }
         Graphics2D g2d = (Graphics2D) g;
-        if (json == null) {
+        Media media = currentMedia;
+        if (media == null) {
+            System.out.println("The current media is null, abandon ship!");
+            return;
+        }
+        if (!media.isAvailable()) {
+            System.out.println("Media not isAvailable: " + media.media);
+            media = fallback;
+        }
+        if (media == null)
+            System.out.println("The fallback is null, abandon ship!");
+        if (json == null || media == null) {
             g.setColor(Color.RED);
             g.setFont(largeFont);
             g.drawImage(missingConfig, 0, 0, width, height, null);
-            g.drawString("Missing configuration file...", width / 2, 200);
+            g.drawString(json == null ? "Missing configuration file..." : "Media is null", width / 2, 200);
             return;
-        }
-
-        Media media = currentMedia;
-        if (media == null) {
-            System.out.println("Even the fallback is null, abandon ship!");
-            return;
-        }
-        if (!media.available()) {
-            System.out.println("Media not available: " + media.media);
-            media = fallback;
         }
         System.out.println("Drawing media: " + media);
         renderMedia(g2d, media);
@@ -403,18 +425,6 @@ public class Display {
         return earliest;
     }
 
-    public static void main(String[] args) throws Exception {
-        try {
-            UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        Display display = new Display();
-        SwingUtilities.invokeLater(display::createGUI);
-        display.configuration();
-    }
-
     private class MediaInfo {
         String info;
         List<Media> manualList;
@@ -442,14 +452,14 @@ public class Display {
             this.media = media;
         }
 
-        private boolean available() {
+        private boolean isAvailable() {
             if (type == MediaType.MANUAL) {
                 for (Media manual : media.manualList)
-                    if (manual.available())
+                    if (manual.isAvailable())
                         return true;
                 return true;
             } else if (type == MediaType.IMAGE || type == MediaType.PRESENTATION || type == MediaType.VIDEO) {
-                return new File(media.info).exists();
+                return new File(MEDIA_DIRECTORY + media.info).exists();
             } else {
                 return pingStatus.get(media.info);
             }
@@ -514,7 +524,7 @@ public class Display {
     }
 
     private BufferedImage rotateImage(Image image) {
-        double angle = Math.toRadians(rotation);
+        double angle = Math.toRadians((rotation == 180 || rotation == 270) ? 180 : 0);
         double sin = Math.abs(Math.sin(angle)), cos = Math.abs(Math.cos(angle));
         int w = image.getWidth(null), h = image.getHeight(null);
         int neww = (int) Math.floor(w * cos + h * sin), newh = (int) Math.floor(h * cos + w * sin);
