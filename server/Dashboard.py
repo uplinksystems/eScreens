@@ -6,13 +6,14 @@ import dash
 import base64
 import dash_dangerously_set_inner_html
 import dash_bootstrap_components as dbc
-from flask import session
+from flask import session, jsonify
 import os
 import json
 import requests
 import re
 from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
 from urllib.parse import urlparse
+from datetime import datetime
 
 
 # Save a file uploaded with the Upload component
@@ -30,7 +31,7 @@ def invalid_str(s):
 def rotation_dropdown():
     return html.Div([
         html.H5('Counter-clockwise Rotation:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='rotation_dropdown', options=[{'label': str(i * 90), 'value': i * 90} for i in range(4)],
+        dcc.Dropdown(id='rotation-dropdown', options=[{'label': str(i * 90), 'value': i * 90} for i in range(4)],
                      value=0, style={'display': 'inline-block', 'width': '20%'})
     ])
 
@@ -39,7 +40,7 @@ def media_dropdown():
     medias = [{'label': media, 'value': media} for media in get_media()]
     return html.Div([
         html.H5('Media File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='media_dropdown', options=medias, value=medias[0]['value'],
+        dcc.Dropdown(id='media-dropdown', options=medias, value=medias[0]['value'],
                      style={'display': 'inline-block', 'width': '60%'})
     ])
 
@@ -47,11 +48,12 @@ def media_dropdown():
 def media_types_dropdown():
     return html.Div([
         html.H5('Media Type:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='screen_dropdown', options=[{'label': type, 'value': type} for type in
-                                                    (['image', 'video', 'presentation', 'twitch', 'yelp', 'instagram',
-                                                      'manual', 'countdown'] if session['login'] == 'admin' else [
-                                                        'image', 'video'])],
-                     value='image', style={'display': 'inline-block', 'width': '30%'})
+        dcc.Dropdown(id='media-types-dropdown', options=[{'label': type, 'value': type} for type in
+                                                         (['image', 'video', 'presentation', 'twitch', 'yelp',
+                                                           'instagram',
+                                                           'manual', 'countdown'] if session['login'] == 'admin' else [
+                                                             'image', 'video'])],
+                     value='image', style={'display': 'inline-block', 'width': '60%'})
     ])
 
 
@@ -59,7 +61,7 @@ def screen_dropdown():
     screens = [{'label': screen, 'value': screen} for screen in get_screens()]
     return html.Div([
         html.H5('Screens:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='screen_dropdown', options=screens, multi=True,
+        dcc.Dropdown(id='screen-dropdown', options=screens, multi=True,
                      style={'display': 'inline-block', 'width': '80%'})
     ])
 
@@ -85,12 +87,24 @@ def add_defaults_screen():
             },
             multiple=True
         ),
+        # Todo: hide selected media label when nothing is selected
         html.H4('Selected Media:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        html.H4('', id='selected-media', style={'display': 'inline-block'}),
+        html.H6('', id='selected-media', style={'display': 'inline-block'}),
+        html.Div([
+            html.H5('Select All Vertical Images:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+            dcc.Dropdown(id='vertical-image-dropdown', options=[], multi=True,
+                         style={'display': 'inline-block', 'width': '80%'})
+        ], id='vertical-image-dropdown-container', style={'display': 'none'}),
         html.Div(html.Button('Upload media', id='upload-media-button')),
+        html.H4('Default Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Input(id='default-name', style={'display': 'inline-block'}),
         media_types_dropdown(),
         media_dropdown(),
-        screen_dropdown()
+        screen_dropdown(),
+        html.H4('Start Date and Time:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Input(id='default-date', type='datetime-local', value='2000-01-01T00:00:00', style={'display': 'inline'}),
+        dbc.Tooltip('This is the changeover time for the new default media', target='default-date'),
+        html.Div(html.Button('Create New Default', id='create-default-button'))
     ])
 
 
@@ -104,12 +118,18 @@ layout = html.Div([
     dbc.Alert('', id='jar-alert', color='primary', dismissable=True, is_open=False),
     dbc.Alert('', id='create-screen-alert', color='primary', dismissable=True, is_open=False),
     dbc.Alert('', id='upload-media-alert', color='primary', dismissable=True, is_open=False),
+    dbc.Alert('', id='create-default-alert', color='primary', dismissable=True, is_open=False),
+    dbc.Alert('', id='create-default-callback-alert', color='primary', dismissable=True, is_open=False),
+    dcc.ConfirmDialog(
+        id='create-default-selection-alert',
+        message='Are you sure there aren\'t and vertical images to select?',
+    ),
 
     # Main content
     html.Div(id='main-content'),
 
     # "Global" data
-    html.Div(id='json', style={'display': 'none'}),
+    html.Div('0', id='create-default-confirms', style={'display': 'none'}),
     dcc.Location('location')
 
 ], style={'width': '500'})
@@ -182,51 +202,105 @@ def register_callbacks(app):
                 html.Button('Add Display', id='add-display-button')
             ])
 
-    #@app.callback(Output('selected-media', 'children'),
-    #              [Input('upload-media-files', 'filename')])
-    #def handle_upload_images(filenames):
-    #    pass
-
+    # Todo: Remove 'vert' from image names and classify accordingly
     # Display selected media file names
-    @app.callback(Output('selected-media', 'children'),
+    @app.callback([Output('selected-media', 'children'),
+                   Output('vertical-image-dropdown', 'options'),
+                   Output('vertical-image-dropdown-container', 'style')],
                   [Input('upload-media-files', 'filename')])
-    def select_file(filenames):
+    def select_media_file(filenames):
         if filenames is None:
-            return ''
+            return [None, [], {'display': 'none'}]
         selected = '\''
         for file in filenames:
             selected = selected + file
             selected = selected + '\', \''
         selected = selected[:-3]
-        return selected
+        image_options = [{'label': file, 'value': file} for file in filenames if
+                         file.__contains__('.jpg') or file.__contains__('.png')]
+        return [selected, image_options, {}]
 
+    # Todo: combine callback functions
     # Upload selected media
     @app.callback(
         [Output('upload-media-alert', 'is_open'),
          Output('upload-media-alert', 'children'),
          Output('upload-media-alert', 'color'),
-         Output('upload-media-files', 'filename')],
+         Output('upload-media-files', 'filename'),
+         Output('media-dropdown', 'options')],
         [Input('upload-media-button', 'n_clicks')],
         [State('upload-media-files', 'filename'),
-         State('upload-media-files', 'contents')]
+         State('upload-media-files', 'contents'),
+         State('vertical-image-dropdown', 'value'),
+         State('vertical-image-dropdown', 'options'),
+         State('media-dropdown', 'options')]
     )
-    def upload_media(n_clicks, filenames, contents):
+    def upload_media(n_clicks, filenames, contents, verticals, images, medias):
         if not n_clicks:
             raise PreventUpdate
-        if filenames is not None and contents is not None:
-            for name, content in zip(filenames, contents):
-                try:
-                    save_file(os.path.join(MEDIA_DIRECTORY, name), content)
-                except Exception as e:
-                    print(e)
-                    return [True, 'Failed to upload media', 'danger', filenames]
+        if filenames is None or contents is None:
+            return [True, 'Select media files first', 'warning', filenames, medias]
+        # if images is not None and len(images) > 0 and verticals is None or len(verticals) == 0:
+        #    return [False, '', '', filenames, medias, True]
+        if save_media_files(filenames, contents, images, verticals):
+            return [True, 'Uploaded media files. Displays will syncronize within 5 minutes', 'success', None,
+                    [{'label': media, 'value': media} for media in get_media()]]
         else:
-            return [True, 'Select media files first', 'warning', filenames]
-        return [True, 'Uploaded media files. Displays will syncronize within 5 minutes', 'success', None]
+            return [True, 'Failed to upload media', 'danger', filenames, medias]
+
+    # Todo: Move
+    def save_media_files(filenames, contents, images, verticals):
+        for name, content in zip(filenames, contents):
+            if {'label': name, 'value': name} in images:
+                if verticals is not None and name in verticals:
+                    media_name = name + '_vertical'
+                else:
+                    media_name = name + '_horizontal'
+            else:
+                media_name = name
+            try:
+                save_file(os.path.join(MEDIA_DIRECTORY, media_name), content)
+            except Exception as e:
+                print(e)
+                return False
+        return True
+
+    # Add a new default
+    @app.callback([Output('create-default-alert', 'is_open'),
+                   Output('create-default-alert', 'children'),
+                   Output('create-default-alert', 'color')],
+                  [Input('create-default-button', 'n_clicks')],
+                  [State('screen-dropdown', 'value'),
+                   State('default-name', 'value'),
+                   State('media-dropdown', 'value'),
+                   State('media-types-dropdown', 'value'),
+                   State('default-date', 'value')])
+    def create_default(n_clicks, screens, name, media, media_type, raw_date):
+        if not n_clicks:
+            raise PreventUpdate
+        if not name:
+            return [True, 'A default name must be specified', 'warning']
+        if screens is None or len(screens) == 0:
+            return [True, 'At least one screen must be selected', 'warning']
+        for screen in screens:
+            try:
+                with open(os.path.join(SCREEN_DIRECTORY, screen)) as json_file:
+                    config = json.load(json_file)
+                config['defaults'].append({'name': name,
+                                           'start_date_time': datetime.strptime(raw_date, '%Y-%m-%dT%H:%M:%S').strftime(
+                                               '%m/%d/%Y %H:%M'), 'type': media_type, 'media': media})
+                with open(os.path.join(SCREEN_DIRECTORY, screen), 'w') as json_file:
+                    json.dump(config, json_file)
+                print('New config: ' + str(config))
+            except Exception as e:
+                print(e)
+                return [True, 'Failed to update all screen configurations. System is in an unknown state.', 'warning']
+        return [True, 'Successfully created new default', 'success']
 
     # Show selected update file name
-    @app.callback(Output('selected-file', 'children'),
-                  [Input('upload-jar-file', 'filename')])
+    @app.callback(
+        Output('selected-file', 'children'), [Input('upload-jar-file', 'filename')]
+    )
     def select_file(filename):
         if filename is None:
             return ''
@@ -263,7 +337,7 @@ def register_callbacks(app):
                    Output('create-screen-alert', 'color')],
                   [Input('add-display-button', 'n_clicks')],
                   [State('display-name', 'value'),
-                   State('rotation_dropdown', 'value')])
+                   State('rotation-dropdown', 'value')])
     def add_display(n_clicks, name, rotation):
         if not n_clicks:
             raise PreventUpdate

@@ -12,7 +12,6 @@ from werkzeug.serving import run_simple
 import dash_bootstrap_components as dbc
 from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
 
-
 app = Flask(__name__)
 app.config.from_pyfile('config.cfg')
 CORS(app)
@@ -34,18 +33,34 @@ def login_required(func):
             return func(*args, **kwargs)
         else:
             return redirect('/')
+
     return decorated_view
 
 
 def _protect_dash_views(dash_app):
     for view_func in dash_app.server.view_functions:
-        if view_func.startswith(dash_app.url_base_pathname):
+        if view_func.startswith('/dashboard/'):
             dash_app.server.view_functions[view_func] = login_required(dash_app.server.view_functions[view_func])
 
 
-external_stylesheets = [dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css', 'https://codepen.io/chriddyp/pen/brPBPO.css']
-dash_app = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/', external_stylesheets=external_stylesheets)
-dash_app.config['suppress_callback_exceptions']=True
+external_stylesheets = [dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css',
+                        'https://codepen.io/chriddyp/pen/brPBPO.css']
+dash_app = dash.Dash(__name__, server=app, show_undo_redo=False, url_base_pathname='/dashboard/', external_stylesheets=external_stylesheets,
+                     meta_tags=[
+                         {
+                             'name': 'Display Dashboard',
+                             'content': 'Edit media shown on displays here.'
+                         },
+                         {
+                             'http-equiv': 'X-UA-Compatible',
+                             'content': 'IE=edge'
+                         },
+                         {
+                             'name': 'viewport',
+                             'content': 'width=device-width, initial-scale=1.0'
+                         }
+                     ])
+dash_app.config['suppress_callback_exceptions'] = True
 dash_app.layout = Dashboard.layout
 _protect_dash_views(dash_app)
 Dashboard.register_callbacks(dash_app)
@@ -53,6 +68,13 @@ Dashboard.register_callbacks(dash_app)
 
 @app.route('/')
 def dashboard():
+    if 'login' in session:
+        return redirect('/dashboard/')
+    return render_template('login.html')
+
+
+@app.route('/old-dashboard')
+def old_dashboard():
     if 'login' in session:
         return assets['index.html'].decode()
     return render_template('login.html')
@@ -72,13 +94,13 @@ def login():
 
 @app.route('/logout')
 def logout():
-   session.pop('login', None)
-   return redirect('/')
+    session.pop('login', None)
+    return redirect('/')
 
 
 @app.route('/auth')
 def get_auth():
-   return session.get('login', '')
+    return session.get('login', '')
 
 
 @app.route('/screen')
@@ -125,10 +147,14 @@ class Media(Resource):
         return '(Put some sort of confirmation here)'
 
     # Unused and untested
-    #def get(self, filename):
+    # def get(self, filename):
     #    if not os.path.isfile(os.path.join(MEDIA_DIRECTORY, filename)):
     #        return 402
     #    return send_file(os.path.join(MEDIA_DIRECTORY, filename))
+
+
+# Todo: Convert classes to routes
+# Todo: store map of time and ip in requests to show active IP, maybe
 
 
 api.add_resource(Screens, '/screen/<string:screen>')
