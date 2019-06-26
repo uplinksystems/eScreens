@@ -51,13 +51,14 @@ public class Display {
 
     private final String MEDIA_DIRECTORY = "media/";
     private final String CONFIG_FILE = "config.json";
-    private final String SERVER_ADDRESS = "http://192.168.1.129:5001/";
-    private final String SERVER_IP = "192.168.1.129";
-    private final int CONFIG_UPDATE_INTERVAL = 300000; // Every 5 minutes
+    private final String SERVER_IP = "10.0.128.200"; // 192.168.1.129
+    private final int SERVER_PORT = 5001;
+    private final String SERVER_ADDRESS = "http://" + SERVER_IP + ":" + SERVER_PORT + "/";
+    private final int CONFIG_UPDATE_INTERVAL = 3000;// 300000; // Every 5 minutes
 
     public static void main(String[] args) throws Exception {
         // Wait for display
-        while (GraphicsEnvironment.isHeadless());
+        while (GraphicsEnvironment.isHeadless()) ;
         Thread.sleep(4000);
         Display display = new Display();
         SwingUtilities.invokeLater(display::createGUI);
@@ -81,19 +82,17 @@ public class Display {
         dateTimeFormatter = DateTimeFormat.forPattern("MM/dd/yyyy HH:mm");
         new Thread(this::updatePings).start();
         // Forced repaints
-        /*new Thread(() -> {
+        new Thread(() -> {
             while (true) {
-                if (frame != null) {
-                    frame.invalidate();
-                    frame.repaint();
-                }
+                if (frame != null)
+                    SwingUtilities.invokeLater(() -> frame.repaint());
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-        }).start();*/
+        }).start();
         //sendPutRequest("screen/screen1", "{\"language\":\"russian\", \"description\":\"yellow\"}");
         //sendGetRequest("screen/screen1");
         //sendPostRequest("media/test.zip", "test.zip");
@@ -161,13 +160,14 @@ public class Display {
             String response = "";
             int attempts = 0;
             while (attempts < 4 && "".equals(response)) {
-                System.out.println("Attempt " + attempts + " to pull JSON file");
                 try {
                     response = sendGetRequest("screen/" + name);
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
                 }
+                System.out.println("Attempt " + attempts + " to pull JSON file");
                 attempts++;
+                Thread.sleep(1000);
             }
             if (!"".equals(response)) {
                 try {
@@ -239,15 +239,13 @@ public class Display {
         }
     }
 
-    // Check for IPs and images
+    // Check for IPs
     private void processMedia(Media media) {
         if (media.type == MediaType.MANUAL)
             for (Media manual : media.media.manualList)
                 processMedia(manual);
         if ((media.type == MediaType.INSTAGRAM || media.type == MediaType.TWITCH || media.type == MediaType.YELP || media.type == MediaType.TWITTER) && !pings.contains(media.media.info))
             pings.add(media.media.info);
-        if (media.type == MediaType.IMAGE && !(media.media.info.endsWith("_horizontal") || media.media.info.endsWith("_vertical")))
-            media.media.info += (rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical";
     }
 
     private List<Media> manualFromJSON(JSONArray array) {
@@ -365,8 +363,7 @@ public class Display {
         if (media == MediaType.VIDEO) {
             switchPane(Panel.MEDIA);
             mediaPlayer.getMediaPlayer().playMedia(currentMedia.media.info);
-        }
-        else
+        } else
             switchPane(Panel.MAIN);
     }
 
@@ -375,15 +372,20 @@ public class Display {
         currentPanel = panel;
     }
 
+    private void loadImage(String name) {
+        String fileName = name + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical");
+        if (!loadedImages.containsKey(fileName))
+            try {
+                loadedImages.put(name, rotateImage(ImageIO.read(new File(MEDIA_DIRECTORY + fileName))));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+    }
+
     private void renderMedia(Graphics2D g, Media media) {
         switch (media.type) {
             case IMAGE:
-                if (!loadedImages.containsKey(media.media.info))
-                    try {
-                        loadedImages.put(media.media.info, rotateImage(ImageIO.read(new File(MEDIA_DIRECTORY + media.media.info))));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                loadImage(media.media.info);
                 g.drawImage(loadedImages.get(media.media.info), 0, 0, width, height, null);
                 break;
             case YELP:
@@ -406,6 +408,13 @@ public class Display {
                 break;
             case PRESENTATION:
 
+                break;
+            case SLIDESHOW:
+                int duration = Integer.parseInt(media.media.info.substring(0, 1));
+                int entries = (media.media.info.length() - media.media.info.replace(", ", "").length()) / 2;
+                String current = media.media.info.split(", ")[((int) (System.currentTimeMillis() / 1000)) % (duration * entries) / duration + 1];
+                loadImage(current);
+                g.drawImage(loadedImages.get(current), 0, 0, width, height, null);
                 break;
         }
     }
@@ -458,8 +467,14 @@ public class Display {
                     if (manual.isAvailable())
                         return true;
                 return true;
-            } else if (type == MediaType.IMAGE || type == MediaType.PRESENTATION || type == MediaType.VIDEO) {
-                return new File(MEDIA_DIRECTORY + media.info).exists();
+            } else if (type == MediaType.IMAGE || type == MediaType.VIDEO) {
+                return new File(MEDIA_DIRECTORY + media.info + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical")).exists();
+            } else if (type == MediaType.SLIDESHOW || type == MediaType.PRESENTATION ) {
+                String[] entries = media.info.split(", ");
+                for (int i = 1; i < entries.length; i++)
+                    if (!new File(MEDIA_DIRECTORY + entries[i] + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical")).exists())
+                        return false;
+                return true;
             } else {
                 return pingStatus.get(media.info);
             }
@@ -516,7 +531,7 @@ public class Display {
     }
 
     private enum MediaType {
-        IMAGE, PRESENTATION, INSTAGRAM, MANUAL, TWITCH, YELP, VIDEO, TWITTER;
+        IMAGE, PRESENTATION, INSTAGRAM, MANUAL, TWITCH, YELP, VIDEO, TWITTER, SLIDESHOW;
 
         private static MediaType fromString(String string) {
             return MediaType.valueOf(string.toUpperCase());

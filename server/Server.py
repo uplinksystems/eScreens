@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort
+from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort, send_from_directory
 from flask_restful import Resource, Api
 import json
 import os
@@ -43,7 +43,7 @@ def _protect_dash_views(dash_app):
             dash_app.server.view_functions[view_func] = login_required(dash_app.server.view_functions[view_func])
 
 
-external_stylesheets = [dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css',
+external_stylesheets = [dbc.themes.BOOTSTRAP, 'https://codepen.io/chriddyp/pen/bWLwgP.css',
                         'https://codepen.io/chriddyp/pen/brPBPO.css']
 dash_app = dash.Dash(__name__, server=app, show_undo_redo=False, url_base_pathname='/dashboard/', external_stylesheets=external_stylesheets,
                      meta_tags=[
@@ -92,6 +92,11 @@ def login():
         return redirect('/')
 
 
+@app.route('/static/<filename>')
+def get_static(filename):
+    return send_from_directory('templates', filename)
+
+
 @app.route('/logout')
 def logout():
     session.pop('login', None)
@@ -115,8 +120,9 @@ def get_media_json():
 
 class Screens(Resource):
     def get(self, screen):
+        # Handle missing file better?
         if not os.path.isfile(os.path.join(SCREEN_DIRECTORY, screen)):
-            abort(402)
+            abort(404)
         with open(os.path.join(SCREEN_DIRECTORY, screen)) as json_file:
             data = json.load(json_file)
             return jsonify(data)
@@ -146,11 +152,10 @@ class Media(Resource):
         file.save(os.path.join(MEDIA_DIRECTORY, filename))
         return '(Put some sort of confirmation here)'
 
-    # Unused and untested
-    # def get(self, filename):
-    #    if not os.path.isfile(os.path.join(MEDIA_DIRECTORY, filename)):
-    #        return 402
-    #    return send_file(os.path.join(MEDIA_DIRECTORY, filename))
+    def get(self, filename):
+        if not os.path.isfile(os.path.join(MEDIA_DIRECTORY, filename)):
+            return abort(404)
+        return send_from_directory(MEDIA_DIRECTORY, filename)
 
 
 # Todo: Convert classes to routes
