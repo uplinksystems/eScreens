@@ -5,12 +5,13 @@ import os
 from flask_cors import CORS
 from flexx import flx
 import OldDashboard
-import Dashboard
+import Dashboard as Dashboard
 from functools import wraps
 import dash
 from werkzeug.serving import run_simple
 import dash_bootstrap_components as dbc
 from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
+import dash_callback_router
 
 app = Flask(__name__)
 app.config.from_pyfile('config.cfg')
@@ -60,10 +61,12 @@ dash_app = dash.Dash(__name__, server=app, show_undo_redo=False, url_base_pathna
                              'content': 'width=device-width, initial-scale=1.0'
                          }
                      ])
+callback_router = dash_callback_router.CallbackRouter(dash_app, hijack_callbacks=True)
 dash_app.config['suppress_callback_exceptions'] = True
 dash_app.layout = Dashboard.layout
 _protect_dash_views(dash_app)
 Dashboard.register_callbacks(dash_app)
+callback_router.register_callbacks()
 
 
 @app.route('/')

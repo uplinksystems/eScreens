@@ -255,14 +255,19 @@ public class Display {
         return manual;
     }
 
+    private MediaInfo mediaInfoFromJSON(JSONObject object) {
+        MediaType type = MediaType.fromString((String) object.get("type"));
+        return type.equals(MediaType.MANUAL) ? new MediaInfo(manualFromJSON((JSONArray) object.get("media"))) : new MediaInfo((String) object.get("media"));
+    }
+
     private Media mediaFromJSON(JSONObject object) {
         MediaType type = MediaType.fromString((String) object.get("type"));
-        return new Media(type, type.equals(MediaType.MANUAL) ? new MediaInfo(manualFromJSON((JSONArray) object.get("media"))) : new MediaInfo((String) object.get("media")));
+        return new Media(type, mediaInfoFromJSON(object));
     }
 
     private Default defaultFromJSON(JSONObject object) {
         MediaType type = MediaType.fromString((String) object.get("type"));
-        return new Default(type, type.equals(MediaType.MANUAL) ? new MediaInfo(manualFromJSON((JSONArray) object.get("media"))) : new MediaInfo((String) object.get("media")), dateTimeFormatter.parseDateTime((String) object.get("start_date_time")));
+        return new Default(type, mediaInfoFromJSON(object), dateTimeFormatter.parseDateTime((String) object.get("start_date_time")));
     }
 
     private Event eventFromJSON(JSONObject object) {
@@ -271,7 +276,7 @@ public class Display {
         JSONArray dayArray = (JSONArray) object.get("days");
         for (Object day : dayArray)
             days.add(DayOfWeek.valueOf((String) day));
-        return new Event(type, type.equals(MediaType.MANUAL) ? new MediaInfo(manualFromJSON((JSONArray) object.get("media"))) : new MediaInfo((String) object.get("media")), dateTimeFormatter.parseDateTime((String) object.get("start_date_time")), dateTimeFormatter.parseDateTime((String) object.get("end_date_time")), timeFromString((String) object.get("start_time")), timeFromString((String) object.get("end_time")), days, (long) object.get("priority"));
+        return new Event(type, mediaInfoFromJSON(object), dateTimeFormatter.parseDateTime((String) object.get("start_date_time")), dateTimeFormatter.parseDateTime((String) object.get("end_date_time")), timeFromString((String) object.get("start_time")), timeFromString((String) object.get("end_time")), days, (long) object.get("priority"));
     }
 
     private Time timeFromString(String time) {
@@ -438,11 +443,11 @@ public class Display {
         String info;
         List<Media> manualList;
 
-        public MediaInfo(String info) {
+        private MediaInfo(String info) {
             this.info = info;
         }
 
-        public MediaInfo(List<Media> manualList) {
+        private MediaInfo(List<Media> manualList) {
             this.manualList = manualList;
         }
 

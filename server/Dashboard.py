@@ -14,6 +14,9 @@ import re
 from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
 from urllib.parse import urlparse
 from datetime import datetime
+from dash_callback_router import PartialUpdate
+import dash_callback_router
+import logging
 
 
 # Save a file uploaded with the Upload component
@@ -48,11 +51,7 @@ def media_dropdown():
 def media_types_dropdown():
     return html.Div([
         html.H5('Artwork Type:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='media-types-dropdown', options=[{'label': type, 'value': type} for type in
-                                                         (['image', 'video', 'presentation', 'twitch', 'yelp',
-                                                           'instagram',
-                                                           'manual', 'countdown'] if session['login'] == 'admin' else [
-                                                             'image', 'video'])],
+        dcc.Dropdown(id='media-types-dropdown', options=[],
                      value='image', style={'display': 'inline-block', 'width': '60%'})
     ])
 
@@ -123,7 +122,7 @@ def add_defaults_screen():
         dcc.Input(id='default-date', type='datetime-local', value=date, style={'display': 'inline'}),
         dbc.Tooltip('This is the changeover time for the new default media', target='default-date'),
         html.Div(html.Button('Create New Default', id='create-default-button'))
-    ])
+    ], id='add-pane')
 
 
 # Dashboard layout
@@ -143,8 +142,56 @@ layout = html.Div([
         message='Are you sure there aren\'t and vertical images to select?',
     ),
 
+    dcc.Tabs(id='tabs', value='tab-add', children=[
+        dcc.Tab(label='Add', value='tab-add'),
+        dcc.Tab(label='Event', value='tab-event'),
+        dcc.Tab(label='Edit', value='tab-edit'),
+        dcc.Tab(label='System', value='tab-system')]),
+
     # Main content
-    html.Div(id='main-content'),
+    html.Div([
+        add_defaults_screen(),
+
+        html.Div([
+            html.H4('Event')
+        ], id='event-pane', style={'display': 'none'}),
+
+        html.Div([
+            html.H4('Edit')
+        ], id='edit-pane', style={'display': 'none'}),
+
+        html.Div([
+            dcc.Upload(
+                id='upload-jar-file',
+                children=html.Div([
+                    'Drag and Drop or ',
+                    html.A('Select JAR file')
+                ]),
+                style={
+                    'width': '100%',
+                    'height': '60px',
+                    'lineHeight': '60px',
+                    'borderWidth': '1px',
+                    'borderStyle': 'dashed',
+                    'borderRadius': '5px',
+                    'textAlign': 'center',
+                    'margin': '10px'
+                },
+                multiple=False,
+                accept='.jar'
+            ),
+            html.H4('Selected File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+            html.H4('', id='selected-file', style={'display': 'inline-block'}),
+            dcc.ConfirmDialogProvider(children=html.Button('Upload JAR'), id='upload-jar-button',
+                                      message='Warning: If you upload an invalid update file, '
+                                              'this will brick the whole system'),
+            html.H3('Add New Display'),
+            html.H4('Display Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
+            dcc.Input(id='display-name', style={'display': 'inline-block'}),
+            rotation_dropdown(),
+            html.Button('Add Display', id='add-display-button')
+        ], id='system-pane', style={'display': 'none'})
+    ]),
 
     # "Global" data
     html.Div('0', id='create-default-confirms', style={'display': 'none'}),
@@ -155,78 +202,30 @@ layout = html.Div([
 
 # Setup all event handling and chaining
 def register_callbacks(app):
-    @app.callback(Output('main-content', 'children'),
-                  [Input('location', 'href')])  # Could be changed to a different callback input, just for drawing page
-    def render_content(url):
-        if not url:
-            raise PreventUpdate
-        return [dcc.Tabs(id='tabs', value='tab-add', children=[
-            dcc.Tab(label='Add', value='tab-add'),
-            dcc.Tab(label='Event', value='tab-event'),
-            dcc.Tab(label='Edit', value='tab-edit'),
-            dcc.Tab(label='System', value='tab-system')
-        ]), html.Div(id='tabs-content')
-                ] if session['login'] == 'admin' else add_defaults_screen()
-
     # Render selected tab's content
-    @app.callback(Output('tabs-content', 'children'),
+    @app.callback([Output('add-pane', 'style'),
+                   Output('event-pane', 'style'),
+                   Output('edit-pane', 'style'),
+                   Output('system-pane', 'style')],
                   [Input('tabs', 'value')])
     def render_tab_content(tab):
         if tab == 'tab-add':
-            return add_defaults_screen()
-
-        # Event tab
+            return {}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
         elif tab == 'tab-event':
-            return html.Div([
-                html.H3('Tab content 2')
-            ])
-
-        # Edit tab
+            return {'display': 'none'}, {}, {'display': 'none'}, {'display': 'none'}
         elif tab == 'tab-edit':
-            return html.Div([
-                html.H3('Tab content 2')
-            ])
-
-        # System tab
+            return {'display': 'none'}, {'display': 'none'}, {}, {'display': 'none'}
         elif tab == 'tab-system':
-            return html.Div([
-                dcc.Upload(
-                    id='upload-jar-file',
-                    children=html.Div([
-                        'Drag and Drop or ',
-                        html.A('Select JAR file')
-                    ]),
-                    style={
-                        'width': '100%',
-                        'height': '60px',
-                        'lineHeight': '60px',
-                        'borderWidth': '1px',
-                        'borderStyle': 'dashed',
-                        'borderRadius': '5px',
-                        'textAlign': 'center',
-                        'margin': '10px'
-                    },
-                    multiple=False,
-                    accept='.jar'
-                ),
-                html.H4('Selected File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-                html.H4('', id='selected-file', style={'display': 'inline-block'}),
-                dcc.ConfirmDialogProvider(children=html.Button('Upload JAR'), id='upload-jar-button',
-                                          message='Warning: If you upload an invalid update file, this will brick the whole system'),
-                html.H3('Add New Display'),
-                html.H4('Display Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
-                dcc.Input(id='display-name', style={'display': 'inline-block'}),
-                rotation_dropdown(),
-                html.Button('Add Display', id='add-display-button')
-            ])
+            return {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {}
 
     # Display selected media file names
     @app.callback([Output('selected-media', 'children'),
                    Output('vertical-image-dropdown', 'options'),
                    Output('horizontal-image-dropdown', 'options'),
                    Output('vertical-image-dropdown-container', 'style')],
-                  [Input('upload-media-files', 'filename')])
-    def select_media_file(filenames):
+                  [Input('upload-media-files', 'contents')],
+                  [State('upload-media-files', 'filename')])
+    def select_media_file(contents, filenames):
         if filenames is None:
             return [None, [], [], {'display': 'none'}]
         selected = '\''
@@ -238,24 +237,21 @@ def register_callbacks(app):
                          file.__contains__('.jpg') or file.__contains__('.png')]
         return [selected, image_options, image_options, {}]
 
-    # Todo: combine callback functions
     # Upload selected media
-    @app.callback(
-        [Output('upload-media-alert', 'is_open'),
-         Output('upload-media-alert', 'children'),
-         Output('upload-media-alert', 'color'),
-         Output('upload-media-files', 'filename'),
-         Output('media-dropdown', 'options')],
-        [Input('upload-media-button', 'n_clicks')],
-        [State('upload-media-files', 'filename'),
-         State('upload-media-files', 'contents'),
-         State('image-name', 'value'),
-         State('vertical-image-dropdown', 'value'),
-         State('horizontal-image-dropdown', 'value'),
-         State('vertical-image-dropdown', 'options'),
-         State('media-dropdown', 'options'),
-         State('upload-media-files', 'filename')]
-    )
+    @app.callback([Output('upload-media-alert', 'is_open'),
+                   Output('upload-media-alert', 'children'),
+                   Output('upload-media-alert', 'color'),
+                   Output('upload-media-files', 'filename'),
+                   Output('media-dropdown', 'options')],
+                  [Input('upload-media-button', 'n_clicks')],
+                  [State('upload-media-files', 'filename'),
+                   State('upload-media-files', 'contents'),
+                   State('image-name', 'value'),
+                   State('vertical-image-dropdown', 'value'),
+                   State('horizontal-image-dropdown', 'value'),
+                   State('vertical-image-dropdown', 'options'),
+                   State('media-dropdown', 'options'),
+                   State('upload-media-files', 'filename')])
     def upload_media(n_clicks, filenames, contents, image_name, verticals, horizontals, images, medias, selected):
         if not n_clicks:
             raise PreventUpdate
@@ -283,7 +279,7 @@ def register_callbacks(app):
             try:
                 save_file(os.path.join(MEDIA_DIRECTORY, media_name), content)
             except Exception as e:
-                print(e)
+                logging.exception(e)
                 return False
         return True
 
@@ -324,16 +320,15 @@ def register_callbacks(app):
                                                '%m/%d/%Y %H:%M'), 'type': media_type, 'media': media})
                 with open(os.path.join(SCREEN_DIRECTORY, screen), 'w') as json_file:
                     json.dump(config, json_file)
-                print('New config: ' + str(config))
+                    logging.info('New config: ' + str(config))
             except Exception as e:
-                print(e)
+                logging.warning('Failed to update config: ' + str(screen))
+                logging.exception(e)
                 return [True, 'Failed to update all screen configurations. System is in an unknown state.', 'danger']
         return [True, 'Successfully created new default', 'success']
 
     # Show selected update file name
-    @app.callback(
-        Output('selected-file', 'children'), [Input('upload-jar-file', 'filename')]
-    )
+    @app.callback(Output('selected-file', 'children'), [Input('upload-jar-file', 'filename')])
     def select_file(filename):
         if filename is None:
             return ''
@@ -362,14 +357,12 @@ def register_callbacks(app):
             return '', '', {'display': 'none'}
 
     # Upload update file
-    @app.callback(
-        [Output('jar-alert', 'is_open'),
-         Output('jar-alert', 'children'),
-         Output('jar-alert', 'color')],
-        [Input('upload-jar-button', 'submit_n_clicks')],
-        [State('upload-jar-file', 'filename'),
-         State('upload-jar-file', 'contents')]
-    )
+    @app.callback([Output('jar-alert', 'is_open'),
+                   Output('jar-alert', 'children'),
+                   Output('jar-alert', 'color')],
+                  [Input('upload-jar-button', 'submit_n_clicks')],
+                  [State('upload-jar-file', 'filename'),
+                   State('upload-jar-file', 'contents')])
     def upload_jar(submit_n_clicks, filename, content):
         if not submit_n_clicks:
             raise PreventUpdate
@@ -379,7 +372,7 @@ def register_callbacks(app):
             try:
                 save_file('escreen.jar', content)
             except Exception as e:
-                print(e)
+                logging.exception(e)
                 return [True, 'Failed to update JAR', 'danger']
         else:
             return [True, 'Select a JAR file first', 'secondary']
@@ -388,7 +381,8 @@ def register_callbacks(app):
     # Add a new display
     @app.callback([Output('create-screen-alert', 'is_open'),
                    Output('create-screen-alert', 'children'),
-                   Output('create-screen-alert', 'color')],
+                   Output('create-screen-alert', 'color'),
+                   Output('screen-dropdown', 'options')],
                   [Input('add-display-button', 'n_clicks')],
                   [State('display-name', 'value'),
                    State('rotation-dropdown', 'value')])
@@ -406,6 +400,28 @@ def register_callbacks(app):
             with open(os.path.join(SCREEN_DIRECTORY, name), 'w') as json_file:
                 json.dump(screen_json, json_file)
         except Exception as e:
-            print(e)
-            return [True, 'Failed create screen', 'danger']
-        return [True, 'Successfully created screen', 'success']
+            logging.exception(e)
+            # Todo: Replace with partial updates and a call to a function to handle setting alert parameters by name
+            return [True, 'Failed create screen', 'danger', [{'label': media, 'value': media} for media in get_media()]]
+        return [True, 'Successfully created screen', 'success',
+                [{'label': media, 'value': media} for media in get_media()]]
+
+    # Last callback gets called with None or dummy arguments when page loads
+    @app.callback([Output('tabs', 'style'),
+                   Output('media-types-dropdown', 'options')],
+                  [Input('location', 'href')])
+    def initialize(url):
+        if session['login'] == 'admin':
+            return {}, [{'label': type, 'value': type} for type in
+                        ['image', 'video', 'presentation', 'twitch', 'yelp', 'instagram', 'manual', 'countdown']]
+        else:
+            return {'display': 'none'}, [{'label': type, 'value': type} for type in ['image', 'video']]
+
+
+if __name__ == '__main__':
+    app = dash.Dash(__name__)
+    app.layout = layout
+    callback_router = dash_callback_router.CallbackRouter(app, True)
+    register_callbacks(app)
+    callback_router.register_callbacks()
+    app.run_server(debug=True)
