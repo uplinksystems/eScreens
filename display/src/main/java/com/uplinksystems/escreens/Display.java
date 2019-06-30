@@ -257,7 +257,14 @@ public class Display {
 
     private MediaInfo mediaInfoFromJSON(JSONObject object) {
         MediaType type = MediaType.fromString((String) object.get("type"));
-        return type.equals(MediaType.MANUAL) ? new MediaInfo(manualFromJSON((JSONArray) object.get("media"))) : new MediaInfo((String) object.get("media"));
+        switch (type) {
+            case MANUAL:
+                    return new MediaInfo(manualFromJSON((JSONArray) object.get("media")));
+            case IMAGE:
+                return new MediaInfo((String) object.get("media"));
+            default:
+                return new MediaInfo((String) object.get("media"));
+        }
     }
 
     private Media mediaFromJSON(JSONObject object) {
@@ -378,8 +385,8 @@ public class Display {
     }
 
     private void loadImage(String name) {
-        String[] nameParts = name.split(".");
-        String fileName = nameParts[0] + ((rotation / 90 % 2 == 0) ? "_horizontal." : "_vertical." + nameParts[1]);
+        String[] nameParts = name.split("\\.");
+        String fileName = nameParts[0] + (((rotation / 90 % 2 == 0) ? "_horizontal." : "_vertical.") + nameParts[1]);
         if (!loadedImages.containsKey(fileName))
             try {
                 loadedImages.put(name, rotateImage(ImageIO.read(new File(MEDIA_DIRECTORY + fileName))));
@@ -475,7 +482,7 @@ public class Display {
                 return true;
             } else if (type == MediaType.IMAGE || type == MediaType.VIDEO) {
                 return new File(MEDIA_DIRECTORY + media.info + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical")).exists();
-            } else if (type == MediaType.SLIDESHOW || type == MediaType.PRESENTATION ) {
+            } else if (type == MediaType.SLIDESHOW || type == MediaType.PRESENTATION) {
                 String[] entries = media.info.split(", ");
                 for (int i = 1; i < entries.length; i++)
                     if (!new File(MEDIA_DIRECTORY + entries[i] + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical")).exists())
