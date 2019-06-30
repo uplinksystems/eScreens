@@ -118,7 +118,6 @@ def add_defaults_screen():
                   ], id='default-preview-images', style={'display': 'none'}),
         screen_dropdown(),
         html.H4('Start Date and Time:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        # Todo: Set starting date this year
         dcc.Input(id='default-date', type='datetime-local', value=date, style={'display': 'inline'}),
         dbc.Tooltip('This is the changeover time for the new default media', target='default-date'),
         html.Div(html.Button('Create New Default', id='create-default-button'))

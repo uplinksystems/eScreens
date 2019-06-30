@@ -97,7 +97,7 @@ class CallbackRouter(object):
                             for id, value in e.results.items():
                                 callback_results[callback_outputs.index(id)] = value
                             break
-                        if isinstance(results, list):
+                        if isinstance(results, (list, tuple)):
                             for i in range(len(results if isinstance(results, list) else list(results))):
                                 callback_results[callback_outputs.index(qualified_callback['results'][i])] = results[i]
                         else:
