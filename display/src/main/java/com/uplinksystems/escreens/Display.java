@@ -378,7 +378,8 @@ public class Display {
     }
 
     private void loadImage(String name) {
-        String fileName = name + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical");
+        String[] nameParts = name.split(".");
+        String fileName = nameParts[0] + ((rotation / 90 % 2 == 0) ? "_horizontal." : "_vertical." + nameParts[1]);
         if (!loadedImages.containsKey(fileName))
             try {
                 loadedImages.put(name, rotateImage(ImageIO.read(new File(MEDIA_DIRECTORY + fileName))));

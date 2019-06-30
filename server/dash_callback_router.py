@@ -1,5 +1,6 @@
 import dash.exceptions
 from dash.dependencies import Input, Output, State
+import logging
 
 
 class PartialUpdate(Exception):
@@ -95,6 +96,10 @@ class CallbackRouter(object):
                         # Todo: Possible support for integer indices for parameters for partial updates
                         except PartialUpdate as e:
                             for id, value in e.results.items():
+                                if id not in callback_outputs:
+                                    logging.warning('Can\'t output to \'{}\' because it hasn\'t been '
+                                                    'registered in a callback decorator'.format(id))
+                                    continue
                                 callback_results[callback_outputs.index(id)] = value
                             break
                         if isinstance(results, (list, tuple)):

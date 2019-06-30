@@ -26,8 +26,8 @@ def save_file(name, content):
         fp.write(data)
 
 
-# Returns True if string contains disallowed characters
-def invalid_str(s):
+# Returns True if string contains disallowed characters for screen names
+def invalid_screen_str(s):
     return re.findall(r'[^A-Za-z0-9_\-\\]', s)
 
 
@@ -43,7 +43,7 @@ def media_dropdown():
     medias = [{'label': media, 'value': media} for media in get_media()]
     return html.Div([
         html.H5('Artwork File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='media-dropdown', options=medias, value=medias[0]['value'],
+        dcc.Dropdown(id='media-dropdown', options=medias, value='',
                      style={'display': 'inline-block', 'width': '60%'})
     ])
 
@@ -68,44 +68,48 @@ def screen_dropdown():
 # The group of components for adding new defaults
 def add_defaults_screen():
     date = datetime.now().strftime('%Y-%m-%dT%H:%M')
+
     return html.Div([
-        dcc.Upload(
-            id='upload-media-files',
-            children=html.Div([
-                'Drag and Drop or ',
-                html.A('Select media files')
-            ]),
-            style={
-                'width': '100%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px'
-            },
-            multiple=True
-        ),
-        # Todo: hide selected media label when nothing is selected
-        html.H4('Selected Artwork:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        html.H6('', id='selected-media', style={'display': 'inline-block'}),
+        html.H4('Artwork Upload Type: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Dropdown(id='upload-types-dropdown',
+                     options=[{'label': type, 'value': type} for type in ['image', 'file']],
+                     value='image', style={'display': 'inline-block', 'width': '60%'}),
+
+        # Image upload panel
         html.Div([
             html.H4('Image Name:', style={'margin': '0px 10px', 'display': 'inline-block'}),
             dcc.Input(id='image-name', style={'display': 'inline-block'}),
-            html.Div([
-                html.H5('Vertical Image:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-                dcc.Dropdown(id='vertical-image-dropdown', options=[], multi=True,
-                             style={'display': 'inline-block', 'width': '80%'})
-            ]),
-            html.Div([
-                html.H5('Horizontal Image:', style={'margin': '0px 10px', 'display': 'inline-block', 'width': 'auto'}),
-                dcc.Dropdown(id='horizontal-image-dropdown', options=[], multi=True,
-                             style={'display': 'inline-block', 'width': '80%'})
-            ])
-        ], id='vertical-image-dropdown-container', style={'display': 'none'}),
+            dcc.Upload(id='upload-horizontal-image',
+                       children=html.Div([html.A('Select horizontal image', id='horizontal-image-label')],
+                                                 style={'textAlign': 'center'}),
+                       style={'width': '40%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
+                              'borderStyle': 'dashed', 'borderRadius': '5px', 'display': 'inline-block',
+                              'margin': '5px'},
+                       multiple=False, accept='image/*'),
+            dcc.Upload(id='upload-vertical-image',
+                       children=html.Div(
+                           [html.A('Select vertical image', id='vertical-image-label')], style={'textAlign': 'center'}),
+                       style={'width': '40%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
+                              'borderStyle': 'dashed', 'borderRadius': '5px', 'display': 'inline-block',
+                              'margin': '5px'},
+                       multiple=False, accept='image/*'),
+        ], id='image-upload-container'),
+
+        # Media upload panel
+        html.Div([
+            dcc.Upload(id='upload-media-files', children=html.Div(['Drag and Drop or ', html.A('Select media files')]),
+                       style={'width': '100%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
+                              'borderStyle': 'dashed', 'borderRadius': '5px', 'textAlign': 'center', 'margin': '10px'},
+                       multiple=True),
+            html.Div([html.H4('Selected Artwork:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+                      html.H6('', id='selected-media', style={'display': 'inline-block'})],
+                     id='media-selection-container', style={'display': 'none'})
+        ], id='media-upload-container', style={'display': 'none'}),
+
+        # Todo: hide selected media label when nothing is selected
+
         html.Div(html.Button('Upload artwork', id='upload-media-button')),
-        html.Div(style={'margin': '20px'}),
+        html.Div(style={'margin': '60px'}),
         html.H4('Default Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
         dcc.Input(id='default-name', style={'display': 'inline-block'}),
         media_types_dropdown(),
@@ -136,10 +140,7 @@ layout = html.Div([
     dbc.Alert('', id='upload-media-alert', color='primary', dismissable=True, is_open=False),
     dbc.Alert('', id='create-default-alert', color='primary', dismissable=True, is_open=False),
     dbc.Alert('', id='create-default-callback-alert', color='primary', dismissable=True, is_open=False),
-    dcc.ConfirmDialog(
-        id='create-default-selection-alert',
-        message='Are you sure there aren\'t and vertical images to select?',
-    ),
+    dcc.ConfirmDialog(id='confirm-dialog', message=''),
 
     dcc.Tabs(id='tabs', value='tab-add', children=[
         dcc.Tab(label='Add', value='tab-add'),
@@ -217,70 +218,134 @@ def register_callbacks(app):
         elif tab == 'tab-system':
             return {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {}
 
+    # Display selected upload panel for media type
+    @app.callback([Output('image-upload-container', 'style'),
+                   Output('media-upload-container', 'style')],
+                  [Input('upload-types-dropdown', 'value')])
+    def select_upload_type(upload_type):
+        if upload_type == 'image':
+            return {}, {'display': 'none'}
+        else:
+            return {'display': 'none'}, {}
+
+    # Display selected image names
+    @app.callback([Output('horizontal-image-label', 'children'),
+                   Output('vertical-image-label', 'children')],
+                  [Input('upload-horizontal-image', 'contents'),
+                   Input('upload-vertical-image', 'contents')],
+                  [State('upload-horizontal-image', 'filename'),
+                   State('upload-vertical-image', 'filename')])
+    def select_media_file(cont_h, cont_v, horizontal, vertical):
+        return 'Horizontal image: \'{}\''.format(
+            horizontal) if horizontal else 'Select horizontal image', 'Vertical image: \'{}\''.format(
+            vertical) if vertical else 'Select vertical image'
+
     # Display selected media file names
     @app.callback([Output('selected-media', 'children'),
-                   Output('vertical-image-dropdown', 'options'),
-                   Output('horizontal-image-dropdown', 'options'),
-                   Output('vertical-image-dropdown-container', 'style')],
+                   Output('media-selection-container', 'style')],
                   [Input('upload-media-files', 'contents')],
                   [State('upload-media-files', 'filename')])
     def select_media_file(contents, filenames):
         if filenames is None:
-            return [None, [], [], {'display': 'none'}]
+            return [None, {'display': 'none'}]
         selected = '\''
         for file in filenames:
             selected = selected + file
             selected = selected + '\', \''
         selected = selected[:-3]
-        image_options = [{'label': file, 'value': file} for file in filenames if
-                         file.__contains__('.jpg') or file.__contains__('.png')]
-        return [selected, image_options, image_options, {}]
+        return [selected, {}]
 
     # Upload selected media
     @app.callback([Output('upload-media-alert', 'is_open'),
                    Output('upload-media-alert', 'children'),
                    Output('upload-media-alert', 'color'),
                    Output('upload-media-files', 'filename'),
-                   Output('media-dropdown', 'options')],
-                  [Input('upload-media-button', 'n_clicks')],
+                   Output('upload-vertical-image', 'filename'),
+                   Output('upload-horizontal-image', 'filename'),
+                   Output('media-dropdown', 'options'),
+                   Output('confirm-dialog', 'message'),
+                   Output('confirm-dialog', 'displayed'),
+                   Output('horizontal-image-label', 'children'),
+                   Output('vertical-image-label', 'children'),
+                   Output('image-name', 'value')],
+                  [Input('upload-media-button', 'n_clicks'),
+                   Input('confirm-dialog', 'submit_n_clicks')],
                   [State('upload-media-files', 'filename'),
                    State('upload-media-files', 'contents'),
-                   State('image-name', 'value'),
-                   State('vertical-image-dropdown', 'value'),
-                   State('horizontal-image-dropdown', 'value'),
-                   State('vertical-image-dropdown', 'options'),
-                   State('media-dropdown', 'options'),
-                   State('upload-media-files', 'filename')])
-    def upload_media(n_clicks, filenames, contents, image_name, verticals, horizontals, images, medias, selected):
+                   State('upload-horizontal-image', 'contents'),
+                   State('upload-vertical-image', 'contents'),
+                   State('upload-horizontal-image', 'filename'),
+                   State('upload-vertical-image', 'filename'),
+                   State('upload-types-dropdown', 'value'),
+                   State('image-name', 'value')])
+    def upload_media(n_clicks, submit_n_clicks, media_filenames, media_contents, horizontal_image, vertical_image,
+                     horizontal_name,
+                     vertical_name, upload_type,
+                     image_name):
         if not n_clicks:
             raise PreventUpdate
-        if filenames is None or contents is None:
-            return [True, 'Select media files first', 'warning', filenames, medias]
-        if len(images) > 0 and len(selected) > 2:
-            return [True, 'Please only upload one set of horizontal and vertical images at a time', 'warning',
-                    filenames, medias]
-        if save_media_files(filenames, contents, images, image_name, verticals, horizontals):
-            return [True, 'Uploaded media files. Displays will syncronize within 5 minutes', 'success', None,
-                    [{'label': media, 'value': media} for media in get_media()]]
-        else:
-            return [True, 'Failed to upload media', 'danger', filenames, medias]
-
-    # Todo: Move
-    def save_media_files(filenames, contents, images, image_name, verticals, horizontals):
-        for name, content in zip(filenames, contents):
-            if {'label': name, 'value': name} in images:
-                if verticals is not None and name in verticals:
-                    media_name = image_name + '_vertical' + name[-4:]
-                if horizontals is not None and name in horizontals:
-                    media_name = image_name + '_horizontal' + name[-4:]
-            else:
-                media_name = name
+        if upload_type == 'image':
+            if not horizontal_name and not vertical_name:
+                send_alert('upload-media-alert', 'Neither a horizontal nor a vertical image have been selected',
+                           'warning')
+            if (not horizontal_name or not vertical_name) and not check_confirm():
+                send_confirm(
+                    'Are you sure you only want to upload a {} image? If there are {} screens, '
+                    'they won\'t have media to display'.format(
+                        'vertical' if not horizontal_name else 'horizontal',
+                        'horizontal' if not horizontal_name else 'vertical'))
+            if not image_name:
+                send_alert('upload-media-alert', 'An image name must be specified', 'warning')
+            if invalid_screen_str(image_name):
+                send_alert('upload-media-alert', 'Invalid image name entered', 'warning')
             try:
-                save_file(os.path.join(MEDIA_DIRECTORY, media_name), content)
+                if horizontal_name:
+                    save_file(
+                        os.path.join(MEDIA_DIRECTORY, image_name + '_horizontal.' + horizontal_name.split('.')[1]),
+                        horizontal_image)
+                if vertical_name:
+                    save_file(os.path.join(MEDIA_DIRECTORY, image_name + '_vertical.' + vertical_name.split('.')[1]),
+                              vertical_image)
             except Exception as e:
                 logging.exception(e)
-                return False
-        return True
+                send_alert('upload-media-alert', 'Failed to upload image', 'danger')
+        else:
+            if media_filenames is None or media_contents is None:
+                send_alert('upload-media-alert', 'A file must be specified first', 'warning')
+            for name, content in zip(media_filenames, media_contents):
+                try:
+                    save_file(os.path.join(MEDIA_DIRECTORY, name), content)
+                except Exception as e:
+                    logging.exception(e)
+                    send_alert('upload-media-alert', 'Failed to upload media: \'{}\''.format(name), 'danger')
+        return [True, 'Uploaded media files. Displays will syncronize within 5 minutes', 'success', None, None, None,
+                [{'label': media, 'value': media} for media in get_media()], '', False, 'Select horizontal image',
+                'Select vertical image', '']
+
+    # Check if current callback is a result of a prompt confirmation
+    # Compare message content afterwards to confirm it's the correct prompt if multiple are used in a callback
+    def check_confirm():
+        for triggered in dash.callback_context.triggered:
+            if triggered['prop_id'] == 'confirm-dialog.submit_n_clicks':
+                return True
+        return False
+
+    # Append confirm values to partial update dict
+    def send_confirm(message, update_dict=None):
+        if update_dict is None:
+            update_dict = {}
+        update_dict['confirm-dialog.message'] = message
+        update_dict['confirm-dialog.displayed'] = True
+        raise PartialUpdate(update_dict)
+
+    # Append alert values to partial update dict
+    def send_alert(alert, message, color, update_dict=None):
+        if update_dict is None:
+            update_dict = {}
+        update_dict[alert + '.color'] = color
+        update_dict[alert + '.children'] = message
+        update_dict[alert + '.is_open'] = True
+        raise PartialUpdate(update_dict)
 
     # Add a new default
     @app.callback([Output('create-default-alert', 'is_open'),
@@ -390,7 +455,7 @@ def register_callbacks(app):
             raise PreventUpdate
         if not name:
             return [True, 'A screen name is required', 'secondary']
-        if invalid_str(name):
+        if invalid_screen_str(name):
             return [True, 'Invalid screen name', 'warning']
         screen_json = {'config': {'name': name, 'rotation': rotation}, 'defaults': [],
                        'events': [],
@@ -401,9 +466,10 @@ def register_callbacks(app):
         except Exception as e:
             logging.exception(e)
             # Todo: Replace with partial updates and a call to a function to handle setting alert parameters by name
-            return [True, 'Failed create screen', 'danger', [{'label': media, 'value': media} for media in get_media()]]
+            return [True, 'Failed create screen', 'danger',
+                    [{'label': media, 'value': media} for media in get_screens()]]
         return [True, 'Successfully created screen', 'success',
-                [{'label': media, 'value': media} for media in get_media()]]
+                [{'label': media, 'value': media} for media in get_screens()]]
 
     # Last callback gets called with None or dummy arguments when page loads
     @app.callback([Output('tabs', 'style'),
