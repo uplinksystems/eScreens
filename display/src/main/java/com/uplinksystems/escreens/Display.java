@@ -9,13 +9,23 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import uk.co.caprica.vlcj.binding.internal.libvlc_media_t;
 import uk.co.caprica.vlcj.component.EmbeddedMediaPlayerComponent;
+import uk.co.caprica.vlcj.medialist.MediaList;
+import uk.co.caprica.vlcj.player.MediaPlayer;
+import uk.co.caprica.vlcj.player.MediaPlayerEventListener;
+import uk.co.caprica.vlcj.player.MediaPlayerFactory;
+import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
+import uk.co.caprica.vlcj.player.embedded.videosurface.CanvasVideoSurface;
+import uk.co.caprica.vlcj.player.list.MediaListPlayer;
+import uk.co.caprica.vlcj.player.list.MediaListPlayerMode;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -27,34 +37,38 @@ import java.sql.Time;
 import java.time.DayOfWeek;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Display {
 
     private JSONObject json;
     private String name;
-    private int width, height, rotation;
-    private Font largeFont;
+    private int width, height, rotation, version;
+    private Font largeFont, mediumFont;
     private List<Event> events;
     private List<Default> defaults;
     private List<String> pings;
     private Map<String, Image> loadedImages;
     private Media fallback, currentMedia;
     private Map<String, Boolean> pingStatus;
-    private DateTimeFormatter dateTimeFormatter;
+    private DateTimeFormatter dateTimeFormatter, dateFormatter;
     private Image missingConfig;
     private boolean configured;
     private JFrame frame;
-    private EmbeddedMediaPlayerComponent mediaPlayer;
     private Panel currentPanel;
     private String hash;
     private boolean isProduction;
+    private EmbeddedMediaPlayer mediaPlayer;
+    private MediaPlayerFactory mediaPlayerFactory;
+    private MediaListPlayer mediaListPlayer;
 
+    // Constants
     private final String MEDIA_DIRECTORY = "media/";
     private final String CONFIG_FILE = "config.json";
-    private final String SERVER_IP = "10.0.128.200"; // 192.168.1.129
+    private final String SERVER_IP = "10.0.128.200";
     private final int SERVER_PORT = 5001;
     private final String SERVER_ADDRESS = "http://" + SERVER_IP + ":" + SERVER_PORT + "/";
-    private final int CONFIG_UPDATE_INTERVAL = 3000;// 300000; // Every 5 minutes
+    private final int CONFIG_UPDATE_INTERVAL = 10000;// 300000; // Every 5 minutes
 
     public static void main(String[] args) throws Exception {
         // Wait for display
@@ -71,6 +85,7 @@ public class Display {
         hash = getMD5();
         System.out.println("Hash is: " + hash);
         largeFont = new Font("serif", Font.PLAIN, 128);
+        mediumFont = new Font("serif", Font.PLAIN, 90);
         events = new ArrayList<>();
         defaults = new ArrayList<>();
         pingStatus = new HashMap<>();
@@ -80,6 +95,10 @@ public class Display {
         height = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().getBounds().height;
         missingConfig = ImageIO.read(getClass().getResource("/missing_config.png"));
         dateTimeFormatter = DateTimeFormat.forPattern("MM/dd/yyyy HH:mm");
+        dateFormatter = DateTimeFormat.forPattern("MM/dd/yyyy");
+        String stringVersion = Display.class.getPackage().getSpecificationVersion();
+        version = stringVersion == null ? 0 : Integer.valueOf(stringVersion);
+        System.out.println("Version is: " + version);
         new Thread(this::updatePings).start();
         // Forced repaints
         new Thread(() -> {
@@ -87,7 +106,7 @@ public class Display {
                 if (frame != null)
                     SwingUtilities.invokeLater(() -> frame.repaint());
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(30000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -113,10 +132,11 @@ public class Display {
     private void updateMedia() {
         while (true) {
             try {
+                // Todo: handle media not available earlier so as to enable switching panels for videos and such not being present
                 if (getCurrentMedia() != currentMedia && frame != null && frame.isVisible()) {
                     System.out.println("Invalidating");
                     currentMedia = getCurrentMedia();
-                    switchPane(currentMedia.type);
+                    switchMedia(currentMedia.type);
                     // Todo: Check if invalidation is necessary
                     //frame.invalidate();
                     SwingUtilities.invokeLater(() -> frame.repaint());
@@ -127,6 +147,14 @@ public class Display {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void rsync(String src, String dest) throws Exception {
+        ProcessBuilder builder = new ProcessBuilder(Arrays.asList("rsync", "-e", "ssh -o StrictHostKeyChecking=no", "-avzh", "pi@" + SERVER_IP + ":" + src, dest));
+        builder.redirectErrorStream(true);
+        builder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        Process p = builder.start();
+        p.waitFor(2, TimeUnit.MINUTES);
     }
 
     // Handle updating config file, media, and the program
@@ -149,11 +177,12 @@ public class Display {
         while (true) {
             if (isProduction) {
                 System.out.println("Updating JAR and media");
-                Runtime.getRuntime().exec("rsync -e 'ssh -o StrictHostKeyChecking=no' -avzh pi@" + SERVER_IP + ":/home/pi/escreens/escreen.jar /home/pi/escreens").waitFor();
-                Runtime.getRuntime().exec("rsync -e 'ssh -o StrictHostKeyChecking=no' -avzh pi@" + SERVER_IP + ":/home/pi/escreens/media /home/pi/escreens").waitFor();
+                rsync("/home/pi/escreens/media", "/home/pi/escreens");
+                rsync("/home/pi/escreens/escreen.jar", "/home/pi/escreens");
+
                 if (!hash.equals(getMD5())) {
                     System.out.println("New hash is: " + getMD5());
-                    System.out.println("Restarting...");
+                    System.out.println("Restarting....");
                     System.exit(0);
                 }
             }
@@ -161,10 +190,12 @@ public class Display {
             int attempts = 0;
             while (attempts < 4 && "".equals(response)) {
                 try {
-                    response = sendGetRequest("screen/" + name);
+                    response = sendGetRequest("screen/" + name + "?version=" + version);
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
                 }
+                if (!"".equals(response))
+                    break;
                 System.out.println("Attempt " + attempts + " to pull JSON file");
                 attempts++;
                 Thread.sleep(1000);
@@ -259,7 +290,7 @@ public class Display {
         MediaType type = MediaType.fromString((String) object.get("type"));
         switch (type) {
             case MANUAL:
-                    return new MediaInfo(manualFromJSON((JSONArray) object.get("media")));
+                return new MediaInfo(manualFromJSON((JSONArray) object.get("media")));
             case IMAGE:
                 return new MediaInfo((String) object.get("media"));
             default:
@@ -301,13 +332,22 @@ public class Display {
         Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0), "blank cursor");
         frame.getContentPane().setCursor(blankCursor);
 
-        mediaPlayer = new EmbeddedMediaPlayerComponent() {
-            @Override
-            public void paintComponents(Graphics g) {
-                super.paintComponents(g);
-                System.out.println("REPAINT PLAYER");
-            }
-        };
+        ArrayList<String> args = new ArrayList<>();
+        if (rotation == 90 || rotation == 180) {
+            args.add("--video-filter=rotate");
+            args.add( "--rotate-angle=180");
+        }
+        mediaPlayerFactory = new MediaPlayerFactory(args);
+        mediaListPlayer = mediaPlayerFactory.newMediaListPlayer();
+        mediaPlayer = mediaPlayerFactory.newEmbeddedMediaPlayer();
+        mediaListPlayer.setMediaPlayer(mediaPlayer);
+        Canvas vlcCanvas = new Canvas();
+        vlcCanvas.setBackground(Color.black);
+        JPanel mediaPane = new JPanel();
+        mediaPane.setLayout(new BorderLayout());
+        mediaPane.add(vlcCanvas, BorderLayout.CENTER);
+        mediaPlayer.setVideoSurface(mediaPlayerFactory.newVideoSurface(vlcCanvas));
+
         JPanel mainPane = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -315,7 +355,7 @@ public class Display {
             }
         };
         frame.add(Panel.MAIN.name(), mainPane);
-        frame.add(Panel.MEDIA.name(), mediaPlayer);
+        frame.add(Panel.MEDIA.name(), mediaPane);
         frame.setTitle("ZapDisplay");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -323,6 +363,8 @@ public class Display {
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                mediaPlayer.stop();
+                mediaPlayerFactory.release();
                 mediaPlayer.release();
                 System.exit(0);
             }
@@ -333,7 +375,6 @@ public class Display {
         switchPane(Panel.MAIN);
         frame.pack();
         frame.setVisible(true);
-        mediaPlayer.setVisible(false);
     }
 
     private void draw(Graphics g) {
@@ -368,19 +409,33 @@ public class Display {
         renderMedia(g2d, media);
     }
 
-    void switchPane(MediaType media) {
+    private void switchMedia(MediaType media) {
         if (currentPanel == Panel.MEDIA) {
-            mediaPlayer.getMediaPlayer().stop();
+            mediaPlayer.stop();
+            if (mediaListPlayer.getMediaList() != null)
+                mediaListPlayer.getMediaList().release();
         }
         if (media == MediaType.VIDEO) {
             switchPane(Panel.MEDIA);
-            mediaPlayer.getMediaPlayer().playMedia(currentMedia.media.info);
+            mediaPlayer.playMedia(MEDIA_DIRECTORY + currentMedia.media.info);
+            mediaPlayer.setRepeat(true);
+        } else if (media == MediaType.SLIDESHOW) {
+            switchPane(Panel.MEDIA);
+            MediaList mediaList = mediaPlayerFactory.newMediaList();
+            String[] splot = currentMedia.media.info.split(", ");
+            for (int i = 1; i < splot.length; i++) {
+                mediaList.addMedia(MEDIA_DIRECTORY + splot[i], splot[i].endsWith(".png") || splot[i].endsWith(".jpg") ? "image-duration=" + splot[0] : "stop-time=" + splot[0]);
+            }
+            mediaListPlayer.setMediaList(mediaList);
+            mediaListPlayer.setMode(MediaListPlayerMode.LOOP);
+            mediaListPlayer.play();
         } else
             switchPane(Panel.MAIN);
     }
 
     private void switchPane(Panel panel) {
         ((CardLayout) frame.getContentPane().getLayout()).show(frame.getContentPane(), panel.name());
+        SwingUtilities.invokeLater(() -> frame.repaint());
         currentPanel = panel;
     }
 
@@ -423,11 +478,30 @@ public class Display {
 
                 break;
             case SLIDESHOW:
-                int duration = Integer.parseInt(media.media.info.substring(0, 1));
+                /*int duration = Integer.parseInt(media.media.info.substring(0, 1));
                 int entries = (media.media.info.length() - media.media.info.replace(", ", "").length()) / 2;
                 String current = media.media.info.split(", ")[((int) (System.currentTimeMillis() / 1000)) % (duration * entries) / duration + 1];
                 loadImage(current);
-                g.drawImage(loadedImages.get(current), 0, 0, width, height, null);
+                g.drawImage(loadedImages.get(current), 0, 0, width, height, null);*/
+                break;
+            case COUNTDOWN:
+                String[] splot = media.media.info.split(", ");
+                DateTime current = LocalDateTime.now().toDateTime();
+                DateTime date0 = dateFormatter.parseDateTime(splot[2]);
+                DateTime date1 = dateFormatter.parseDateTime(splot[4]);
+                DateTime delta0 = date0.minus(current.getMillis());
+                DateTime delta1 = date1.minus(current.getMillis());
+                loadImage(splot[0]);
+                g.drawImage(loadedImages.get(splot[0]), 0, 0, width, height, null);
+                g.rotate(-Math.PI / 2, width / 2f, height / 2f);
+                g.setFont(mediumFont);
+                g.setColor(Color.BLACK);
+                g.drawString(splot[1], 450, -100);
+                g.drawString(splot[3], 480, 1000);
+                g.setFont(largeFont);
+                g.drawString(delta0 == date0 ? "00:00:00" : delta0.toString("dd:HH:mm"), 700, 100);
+                g.drawString(delta1 == date1 ? "00:00:00" : delta1.toString("dd:HH:mm"), 700, 1200);
+                g.rotate(Math.PI / 2, width / 2f, height / 2f);
                 break;
         }
     }
@@ -480,17 +554,23 @@ public class Display {
                     if (manual.isAvailable())
                         return true;
                 return true;
-            } else if (type == MediaType.IMAGE || type == MediaType.VIDEO) {
-                return new File(MEDIA_DIRECTORY + media.info + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical")).exists();
-            } else if (type == MediaType.SLIDESHOW || type == MediaType.PRESENTATION) {
+            } else if (type == MediaType.IMAGE) {
+                return new File(MEDIA_DIRECTORY + insertImageOrientation(media.info)).exists();
+            } else if (type == MediaType.SLIDESHOW) {
+                // Todo: fix slideshow availibility, it don't work
                 String[] entries = media.info.split(", ");
-                for (int i = 1; i < entries.length; i++)
-                    if (!new File(MEDIA_DIRECTORY + entries[i] + ((rotation / 90 % 2 == 0) ? "_horizontal" : "_vertical")).exists())
+                for (int i = 1; i < entries.length; i++) {
+                    if (!new File(MEDIA_DIRECTORY + entries[i]).exists())
                         return false;
+                }
                 return true;
-            } else {
+            } else if (type == MediaType.PRESENTATION || type == MediaType.VIDEO)
+                return new File(MEDIA_DIRECTORY + media.info).exists();
+            else if (type == MediaType.COUNTDOWN)
+                return new File(MEDIA_DIRECTORY + insertImageOrientation(media.info.split(", ")[0])).exists();
+            else
                 return pingStatus.get(media.info);
-            }
+
         }
 
         @Override
@@ -539,12 +619,17 @@ public class Display {
         }
     }
 
+    private String insertImageOrientation(String imageName) {
+        String[] nameParts = imageName.split("\\.");
+        return nameParts[0] + ((rotation / 90 % 2 == 0) ? "_horizontal." : "_vertical.") + nameParts[1];
+    }
+
     private enum Panel {
         MAIN, MEDIA
     }
 
     private enum MediaType {
-        IMAGE, PRESENTATION, INSTAGRAM, MANUAL, TWITCH, YELP, VIDEO, TWITTER, SLIDESHOW;
+        IMAGE, PRESENTATION, INSTAGRAM, MANUAL, TWITCH, YELP, VIDEO, TWITTER, SLIDESHOW, COUNTDOWN;
 
         private static MediaType fromString(String string) {
             return MediaType.valueOf(string.toUpperCase());
@@ -579,7 +664,6 @@ public class Display {
         con.setRequestProperty("AUTHORIZATION", "Basic " + encoding);
         con.setRequestProperty("Content-Type", "application/json");
         int responseCode = con.getResponseCode();
-
         if (responseCode == HttpURLConnection.HTTP_OK) {
             StringBuilder response = new StringBuilder();
             try (BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()))) {

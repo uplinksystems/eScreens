@@ -1,22 +1,25 @@
-from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort, send_from_directory
+from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort, send_from_directory, g
 from flask_restful import Resource, Api
 import json
 import os
+import time
 from flask_cors import CORS
 from flexx import flx
 import OldDashboard
 import Dashboard as Dashboard
 from functools import wraps
 import dash
-from werkzeug.serving import run_simple
 import dash_bootstrap_components as dbc
 from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
 import dash_callback_router
+import threading
+
 
 app = Flask(__name__)
 app.config.from_pyfile('config.cfg')
 CORS(app)
 api = Api(app)
+displays = {}
 
 # Ensure directory exists
 os.makedirs(MEDIA_DIRECTORY, exist_ok=True)
@@ -121,19 +124,29 @@ def get_media_json():
     return jsonify(get_screens())
 
 
+@app.route('/online-screens')
+def get_online_screens():
+    return jsonify(g['displays'] if 'displays' in g else {})
+
+
 class Screens(Resource):
     def get(self, screen):
         # Handle missing file better?
-        if not os.path.isfile(os.path.join(SCREEN_DIRECTORY, screen)):
+        if not os.path.isfile(os.path.join(SCREEN_DIRECTORY, screen + '.json')):
             abort(404)
-        with open(os.path.join(SCREEN_DIRECTORY, screen)) as json_file:
+        global displays
+        with threading.Lock():
+            displays[screen] = {'version': request.args.get('version', default=1, type=int), 'ip': request.remote_addr,
+                                'last-response-time': time.time()}
+
+        with open(os.path.join(SCREEN_DIRECTORY, screen + '.json')) as json_file:
             data = json.load(json_file)
             return jsonify(data)
 
     def put(self, screen):
         if 'login' not in session:
             abort(401)
-        with open(os.path.join(SCREEN_DIRECTORY, screen), 'w') as json_file:
+        with open(os.path.join(SCREEN_DIRECTORY, screen + '.json'), 'w') as json_file:
             json.dump(request.get_json(force=True), json_file)
         return '(Put some sort of confirmation here)'
 
@@ -170,4 +183,4 @@ api.add_resource(Media, '/media/<string:filename>')
 api.add_resource(Update, '/update')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5001)
+    app.run(host='0.0.0.0', debug=True, port=5000)

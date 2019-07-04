@@ -4,7 +4,6 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 import dash
 import base64
-import dash_dangerously_set_inner_html
 import dash_bootstrap_components as dbc
 from flask import session, jsonify
 import os
@@ -28,9 +27,10 @@ def save_file(name, content):
 
 # Returns True if string contains disallowed characters for screen names
 def invalid_screen_str(s):
-    return re.findall(r'[^A-Za-z0-9_\-\\]', s)
+    return re.findall(r'[^ A-Za-z0-9_\-\\]', s)
 
 
+# Todo: Pass in id parameters for reusable element functions
 def rotation_dropdown():
     return html.Div([
         html.H5('Counter-clockwise Rotation:', style={'margin': '0px 10px', 'display': 'inline-block'}),
@@ -113,6 +113,7 @@ def add_defaults_screen():
         html.H4('Default Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
         dcc.Input(id='default-name', style={'display': 'inline-block'}),
         media_types_dropdown(),
+        # Todo: filter out images from other types for when image type is selected in dropdown
         media_dropdown(),
         html.Div([html.Img(id='default-preview-image-horizontal',
                            style={'height': '20%', 'width': '40%', 'display': 'inline-bock'}),
@@ -362,11 +363,13 @@ def register_callbacks(app):
             raise PreventUpdate
         if not name:
             return [True, 'A default name must be specified', 'warning']
+        if not media:
+            return [True, 'Media content must be specified', 'warning']
         if screens is None or len(screens) == 0:
             return [True, 'At least one screen must be selected', 'warning']
         for screen in screens:
             try:
-                with open(os.path.join(SCREEN_DIRECTORY, screen)) as json_file:
+                with open(os.path.join(SCREEN_DIRECTORY, screen.replace(' ', '_') + '.json')) as json_file:
                     config = json.load(json_file)
 
                 # Remove if name is already present
@@ -382,7 +385,7 @@ def register_callbacks(app):
                                            'start_date_time': datetime.strptime(raw_date, '%Y-%m-%dT%H:%M' if len(
                                                raw_date) == 16 else '%Y-%m-%dT%H:%M:%S').strftime(
                                                '%m/%d/%Y %H:%M'), 'type': media_type, 'media': media})
-                with open(os.path.join(SCREEN_DIRECTORY, screen), 'w') as json_file:
+                with open(os.path.join(SCREEN_DIRECTORY, screen.replace(' ', '_') + '.json'), 'w') as json_file:
                     json.dump(config, json_file)
                     logging.info('New config: ' + str(config))
             except Exception as e:
@@ -461,7 +464,7 @@ def register_callbacks(app):
                        'events': [],
                        'fallback': {'name': 'fallback', 'type': 'image', 'media': 'fallback.png'}}
         try:
-            with open(os.path.join(SCREEN_DIRECTORY, name), 'w') as json_file:
+            with open(os.path.join(SCREEN_DIRECTORY, name.replace(' ', '_') + '.json'), 'w') as json_file:
                 json.dump(screen_json, json_file)
         except Exception as e:
             logging.exception(e)

@@ -5,13 +5,12 @@ SCREEN_DIRECTORY = os.path.join(os.path.dirname(__file__), 'screen')
 
 
 def get_screens():
-    # Todo: replace underscores with spaces
     files = []
     for filename in os.listdir(SCREEN_DIRECTORY):
         path = os.path.join(SCREEN_DIRECTORY, filename)
         if os.path.isfile(path):
-            files.append(filename)
-    return files
+            files.append(filename[:-5].replace('_', ' '))
+    return sorted(files)
 
 
 def get_media():
@@ -29,4 +28,4 @@ def get_media():
                     files.append(split[0] + split[1])
             else:
                 files.append(filename)
-    return files
+    return sorted(files)
