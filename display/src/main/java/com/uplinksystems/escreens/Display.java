@@ -424,7 +424,7 @@ public class Display {
             MediaList mediaList = mediaPlayerFactory.newMediaList();
             String[] splot = currentMedia.media.info.split(", ");
             for (int i = 1; i < splot.length; i++) {
-                mediaList.addMedia(MEDIA_DIRECTORY + splot[i], splot[i].endsWith(".png") || splot[i].endsWith(".jpg") ? "image-duration=" + splot[0] : "stop-time=" + splot[0]);
+                mediaList.addMedia(MEDIA_DIRECTORY + splot[i], (splot[i].endsWith(".png") || splot[i].endsWith(".jpg")) ? ("image-duration=" + splot[0]) : ("stop-time=" + splot[0]));
             }
             mediaListPlayer.setMediaList(mediaList);
             mediaListPlayer.setMode(MediaListPlayerMode.LOOP);

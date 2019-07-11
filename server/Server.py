@@ -14,20 +14,20 @@ from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
 import dash_callback_router
 import threading
 
-
 app = Flask(__name__)
 app.config.from_pyfile('config.cfg')
 CORS(app)
 api = Api(app)
-displays = {}
+with threading.Lock():
+    try:
+        with open('displays.json') as json_file:
+            displays = json.load(json_file)
+    except:
+        displays = {}
 
 # Ensure directory exists
 os.makedirs(MEDIA_DIRECTORY, exist_ok=True)
 os.makedirs(SCREEN_DIRECTORY, exist_ok=True)
-
-# Initialize Dashboard
-a = flx.App(OldDashboard.Root, title='Display Dashboard')
-assets = a.dump('index.html', link=0)
 
 
 def login_required(func):
@@ -93,7 +93,7 @@ def login():
             session['login'] = 'user'
         elif request.form['username'].lower() == 'admin' and request.form['password'].lower() == 'admin':
             session['login'] = 'admin'
-        if not 'login' in session:
+        if 'login' not in session:
             flash('Invalid Credentials')
         return redirect('/')
 
@@ -124,9 +124,28 @@ def get_media_json():
     return jsonify(get_screens())
 
 
+@app.route('/screen-connections')
+def get_screen_connections():
+    online_screens = []
+    for name, screen in displays.items():
+        if time.time() - screen['last-response-time'] < 300:  # Last 5 minutes
+            online_screens.append({'name': name, 'ip': screen['ip'], 'version': screen['version']})
+    return jsonify(online_screens)
+
+
 @app.route('/online-screens')
 def get_online_screens():
-    return jsonify(g['displays'] if 'displays' in g else {})
+    return jsonify(displays)
+
+
+@app.route('/reboot')
+def reboot():
+    #if 'login' not in session:
+        #abort(401)
+    for name, screen in displays.items():
+        if time.time() - screen['last-response-time'] < 3600:  # Last 5 minutes
+            print(os.popen("echo Hello World").read())
+    return 'Restarting'
 
 
 class Screens(Resource):
@@ -138,7 +157,8 @@ class Screens(Resource):
         with threading.Lock():
             displays[screen] = {'version': request.args.get('version', default=1, type=int), 'ip': request.remote_addr,
                                 'last-response-time': time.time()}
-
+            with open('displays.json', 'w') as json_file:
+                json.dump(displays, json_file)
         with open(os.path.join(SCREEN_DIRECTORY, screen + '.json')) as json_file:
             data = json.load(json_file)
             return jsonify(data)
@@ -175,12 +195,10 @@ class Media(Resource):
 
 
 # Todo: Convert classes to routes
-# Todo: store map of time and ip in requests to show active IP, maybe
-
 
 api.add_resource(Screens, '/screen/<string:screen>')
 api.add_resource(Media, '/media/<string:filename>')
 api.add_resource(Update, '/update')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    app.run(host='0.0.0.0', debug=True, port=5001)

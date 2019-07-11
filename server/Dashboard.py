@@ -42,7 +42,7 @@ def rotation_dropdown():
 def media_dropdown():
     medias = [{'label': media, 'value': media} for media in get_media()]
     return html.Div([
-        html.H5('Artwork File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H5('Media File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
         dcc.Dropdown(id='media-dropdown', options=medias, value='',
                      style={'display': 'inline-block', 'width': '60%'})
     ])
@@ -50,7 +50,7 @@ def media_dropdown():
 
 def media_types_dropdown():
     return html.Div([
-        html.H5('Artwork Type:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H5('Media Type:', style={'margin': '0px 10px', 'display': 'inline-block'}),
         dcc.Dropdown(id='media-types-dropdown', options=[],
                      value='image', style={'display': 'inline-block', 'width': '60%'})
     ])
@@ -70,7 +70,28 @@ def add_defaults_screen():
     date = datetime.now().strftime('%Y-%m-%dT%H:%M')
 
     return html.Div([
-        html.H4('Artwork Upload Type: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H4('Default Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Input(id='default-name', style={'display': 'inline-block'}),
+        media_types_dropdown(),
+        # Todo: filter out images from other types for when image type is selected in dropdown
+        media_dropdown(),
+        html.Div([html.Img(id='default-preview-image-horizontal',
+                           style={'height': '20%', 'width': '40%', 'display': 'inline-bock'}),
+                  html.Img(id='default-preview-image-vertical',
+                           style={'height': '25%', 'width': '22%', 'display': 'inline-bock'},
+                           className='rotateimgvertical')
+                  ], id='default-preview-images', style={'display': 'none'}),
+        screen_dropdown(),
+        html.H4('Start Date and Time:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Input(id='default-date', type='datetime-local', value=date, style={'display': 'inline'}),
+        dbc.Tooltip('This is the changeover time for the new default media', target='default-date'),
+        html.Div(html.Button('Create New Default', id='create-default-button'))
+    ], id='add-pane', style={'display': 'none'})
+
+
+def add_upload_screen():
+    return html.Div([
+        html.H4('Media Upload Type: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
         dcc.Dropdown(id='upload-types-dropdown',
                      options=[{'label': type, 'value': type} for type in ['image', 'file']],
                      value='image', style={'display': 'inline-block', 'width': '60%'}),
@@ -81,7 +102,7 @@ def add_defaults_screen():
             dcc.Input(id='image-name', style={'display': 'inline-block'}),
             dcc.Upload(id='upload-horizontal-image',
                        children=html.Div([html.A('Select horizontal image', id='horizontal-image-label')],
-                                                 style={'textAlign': 'center'}),
+                                         style={'textAlign': 'center'}),
                        style={'width': '40%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
                               'borderStyle': 'dashed', 'borderRadius': '5px', 'display': 'inline-block',
                               'margin': '5px'},
@@ -101,38 +122,21 @@ def add_defaults_screen():
                        style={'width': '100%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
                               'borderStyle': 'dashed', 'borderRadius': '5px', 'textAlign': 'center', 'margin': '10px'},
                        multiple=True),
-            html.Div([html.H4('Selected Artwork:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+            html.Div([html.H4('Selected Media:', style={'margin': '0px 10px', 'display': 'inline-block'}),
                       html.H6('', id='selected-media', style={'display': 'inline-block'})],
                      id='media-selection-container', style={'display': 'none'})
         ], id='media-upload-container', style={'display': 'none'}),
 
         # Todo: hide selected media label when nothing is selected
 
-        html.Div(html.Button('Upload artwork', id='upload-media-button')),
-        html.Div(style={'margin': '60px'}),
-        html.H4('Default Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Input(id='default-name', style={'display': 'inline-block'}),
-        media_types_dropdown(),
-        # Todo: filter out images from other types for when image type is selected in dropdown
-        media_dropdown(),
-        html.Div([html.Img(id='default-preview-image-horizontal',
-                           style={'height': '20%', 'width': '40%', 'display': 'inline-bock'}),
-                  html.Img(id='default-preview-image-vertical',
-                           style={'height': '25%', 'width': '22%', 'display': 'inline-bock'},
-                           className='rotateimgvertical')
-                  ], id='default-preview-images', style={'display': 'none'}),
-        screen_dropdown(),
-        html.H4('Start Date and Time:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Input(id='default-date', type='datetime-local', value=date, style={'display': 'inline'}),
-        dbc.Tooltip('This is the changeover time for the new default media', target='default-date'),
-        html.Div(html.Button('Create New Default', id='create-default-button'))
-    ], id='add-pane')
+        html.Div(html.Button('Upload Media', id='upload-media-button')),
+    ], id='upload-pane')
 
 
 # Dashboard layout
 layout = html.Div([
     # Header
-    html.H1('Zapzone Display System Dashboard', style={'display': 'inline'}),
+    html.H1('Zap Zone Display System Dashboard', style={'display': 'inline'}),
     html.A(html.Button('Logout'), href='/logout', style={'float': 'right', 'display': 'inline'}),
 
     # Alerts
@@ -143,14 +147,16 @@ layout = html.Div([
     dbc.Alert('', id='create-default-callback-alert', color='primary', dismissable=True, is_open=False),
     dcc.ConfirmDialog(id='confirm-dialog', message=''),
 
-    dcc.Tabs(id='tabs', value='tab-add', children=[
-        dcc.Tab(label='Add', value='tab-add'),
-        dcc.Tab(label='Event', value='tab-event'),
+    dcc.Tabs(id='tabs', value='tab-upload', children=[
+        dcc.Tab(label='Upload New Media', value='tab-upload'),
+        dcc.Tab(label='Add Default', value='tab-add'),
+        dcc.Tab(label='Add Event', value='tab-event'),
         dcc.Tab(label='Edit', value='tab-edit'),
         dcc.Tab(label='System', value='tab-system')]),
 
     # Main content
     html.Div([
+        add_upload_screen(),
         add_defaults_screen(),
 
         html.Div([
@@ -204,20 +210,23 @@ layout = html.Div([
 # Setup all event handling and chaining
 def register_callbacks(app):
     # Render selected tab's content
-    @app.callback([Output('add-pane', 'style'),
+    @app.callback([Output('upload-pane', 'style'),
+                   Output('add-pane', 'style'),
                    Output('event-pane', 'style'),
                    Output('edit-pane', 'style'),
                    Output('system-pane', 'style')],
                   [Input('tabs', 'value')])
     def render_tab_content(tab):
-        if tab == 'tab-add':
-            return {}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
+        if tab == 'tab-upload':
+            return {}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
+        elif tab == 'tab-add':
+            return {'display': 'none'}, {}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
         elif tab == 'tab-event':
-            return {'display': 'none'}, {}, {'display': 'none'}, {'display': 'none'}
+            return {'display': 'none'}, {'display': 'none'}, {}, {'display': 'none'}, {'display': 'none'}
         elif tab == 'tab-edit':
-            return {'display': 'none'}, {'display': 'none'}, {}, {'display': 'none'}
+            return {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {}, {'display': 'none'}
         elif tab == 'tab-system':
-            return {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {}
+            return {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {}
 
     # Display selected upload panel for media type
     @app.callback([Output('image-upload-container', 'style'),
@@ -283,6 +292,7 @@ def register_callbacks(app):
                      horizontal_name,
                      vertical_name, upload_type,
                      image_name):
+        # Todo: clear non-image files from selection after upload
         if not n_clicks:
             raise PreventUpdate
         if upload_type == 'image':
@@ -475,15 +485,23 @@ def register_callbacks(app):
                 [{'label': media, 'value': media} for media in get_screens()]]
 
     # Last callback gets called with None or dummy arguments when page loads
-    @app.callback([Output('tabs', 'style'),
+    @app.callback([Output('tabs', 'children'),
                    Output('media-types-dropdown', 'options')],
                   [Input('location', 'href')])
     def initialize(url):
         if session['login'] == 'admin':
-            return {}, [{'label': type, 'value': type} for type in
-                        ['image', 'video', 'presentation', 'twitch', 'yelp', 'instagram', 'manual', 'countdown']]
+            return [
+                       dcc.Tab(label='Upload New Media', value='tab-upload'),
+                       dcc.Tab(label='Add Default', value='tab-add'),
+                       dcc.Tab(label='Add Event', value='tab-event'),
+                       dcc.Tab(label='Edit', value='tab-edit'),
+                       dcc.Tab(label='System', value='tab-system')], [{'label': type, 'value': type} for type in
+                                                                      ['image', 'video', 'presentation', 'twitch',
+                                                                       'yelp', 'instagram', 'manual', 'countdown']]
         else:
-            return {'display': 'none'}, [{'label': type, 'value': type} for type in ['image', 'video']]
+            return [dcc.Tab(label='Upload New Media', value='tab-upload'),
+                    dcc.Tab(label='Add Default', value='tab-add')], [{'label': type, 'value': type} for type in
+                                                             ['image', 'video']]
 
 
 if __name__ == '__main__':
