@@ -33,7 +33,7 @@ def invalid_screen_str(s):
 # Todo: Pass in id parameters for reusable element functions
 def rotation_dropdown():
     return html.Div([
-        html.H5('Counter-clockwise Rotation:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H4('Counter-clockwise Rotation:', style={'margin': '0px 10px', 'display': 'inline-block'}),
         dcc.Dropdown(id='rotation-dropdown', options=[{'label': str(i * 90), 'value': i * 90} for i in range(4)],
                      value=0, style={'display': 'inline-block', 'width': '20%'})
     ])
@@ -42,7 +42,7 @@ def rotation_dropdown():
 def media_dropdown():
     medias = [{'label': media, 'value': media} for media in get_media()]
     return html.Div([
-        html.H5('Media File:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H4('Media File:', style={'margin': '0px 10px 6px', 'display': 'inline-block'}),
         dcc.Dropdown(id='media-dropdown', options=medias, value='',
                      style={'display': 'inline-block', 'width': '60%'})
     ])
@@ -50,7 +50,7 @@ def media_dropdown():
 
 def media_types_dropdown():
     return html.Div([
-        html.H5('Media Type:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H4('Media Type:', style={'margin': '0px 10px 6px 6px', 'display': 'inline-block'}),
         dcc.Dropdown(id='media-types-dropdown', options=[],
                      value='image', style={'display': 'inline-block', 'width': '60%'})
     ])
@@ -59,9 +59,9 @@ def media_types_dropdown():
 def screen_dropdown():
     screens = [{'label': screen, 'value': screen} for screen in get_screens()]
     return html.Div([
-        html.H5('Screen Locations:', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.H4('Screen Locations:', style={'margin': '0px 10px', 'display': 'inline-block'}),
         dcc.Dropdown(id='screen-dropdown', options=screens, multi=True,
-                     style={'display': 'inline-block', 'width': '80%'})
+                     style={'display': 'inline-block', 'width': '60%'})
     ])
 
 
@@ -70,8 +70,6 @@ def add_defaults_screen():
     date = datetime.now().strftime('%Y-%m-%dT%H:%M')
 
     return html.Div([
-        html.H4('Default Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Input(id='default-name', style={'display': 'inline-block'}),
         media_types_dropdown(),
         # Todo: filter out images from other types for when image type is selected in dropdown
         media_dropdown(),
@@ -83,9 +81,12 @@ def add_defaults_screen():
                   ], id='default-preview-images', style={'display': 'none'}),
         screen_dropdown(),
         html.H4('Start Date and Time:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Input(id='default-date', type='datetime-local', value=date, style={'display': 'inline'}),
+        dcc.Input(id='default-date', type='datetime-local', value=date, style={'margin': '0px 10px', 'display': 'inline'}),
         dbc.Tooltip('This is the changeover time for the new default media', target='default-date'),
-        html.Div(html.Button('Create New Default', id='create-default-button'))
+        html.Div(),
+        html.H4('Graphic Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        dcc.Input(id='default-name', style={'margin': '0px 10px', 'display': 'inline-block'}),
+        html.Div(html.Button('Create New Configuration', id='create-default-button'))
     ], id='add-pane', style={'display': 'none'})
 
 
@@ -149,7 +150,7 @@ layout = html.Div([
 
     dcc.Tabs(id='tabs', value='tab-upload', children=[
         dcc.Tab(label='Upload New Media', value='tab-upload'),
-        dcc.Tab(label='Add Default', value='tab-add'),
+        dcc.Tab(label='Configure Media', value='tab-add'),
         dcc.Tab(label='Add Event', value='tab-event'),
         dcc.Tab(label='Edit', value='tab-edit'),
         dcc.Tab(label='System', value='tab-system')]),
@@ -372,7 +373,7 @@ def register_callbacks(app):
         if not n_clicks:
             raise PreventUpdate
         if not name:
-            return [True, 'A default name must be specified', 'warning']
+            return [True, 'A graphic name must be specified', 'warning']
         if not media:
             return [True, 'Media content must be specified', 'warning']
         if screens is None or len(screens) == 0:
@@ -492,7 +493,7 @@ def register_callbacks(app):
         if session['login'] == 'admin':
             return [
                        dcc.Tab(label='Upload New Media', value='tab-upload'),
-                       dcc.Tab(label='Add Default', value='tab-add'),
+                       dcc.Tab(label='Configure Media', value='tab-add'),
                        dcc.Tab(label='Add Event', value='tab-event'),
                        dcc.Tab(label='Edit', value='tab-edit'),
                        dcc.Tab(label='System', value='tab-system')], [{'label': type, 'value': type} for type in
@@ -500,7 +501,7 @@ def register_callbacks(app):
                                                                        'yelp', 'instagram', 'manual', 'countdown']]
         else:
             return [dcc.Tab(label='Upload New Media', value='tab-upload'),
-                    dcc.Tab(label='Add Default', value='tab-add')], [{'label': type, 'value': type} for type in
+                    dcc.Tab(label='Configure Media', value='tab-add')], [{'label': type, 'value': type} for type in
                                                              ['image', 'video']]
 
 

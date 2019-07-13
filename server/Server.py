@@ -4,8 +4,6 @@ import json
 import os
 import time
 from flask_cors import CORS
-from flexx import flx
-import OldDashboard
 import Dashboard as Dashboard
 from functools import wraps
 import dash
