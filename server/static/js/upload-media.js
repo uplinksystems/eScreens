@@ -33,7 +33,8 @@ function onVerify() {
     let name = file.substring(startIndex);
     if (name.indexOf('\\') === 0 || name.indexOf('/') === 0)
         name = name.substring(1);
-    sendForm("/upload-media/" + document.forms["form"]["media-name"].value + name.substr(name.length - 4, 4));
+    let splot = name.split(".");
+    sendForm("/upload-media/" + document.forms["form"]["media-name"].value + "." + splot[1]);
 
     return false;
 }

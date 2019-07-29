@@ -1,11 +1,13 @@
 let fields = "file-fields";
 
 function updateType() {
-    let dropdown = document.getElementById("type");
+    let dropdown = document.forms['form']["type"];
     let panes = document.getElementsByClassName("media-fields");
 
+    document.getElementById("image-preview").style.display = "none";
     switch (dropdown.options[dropdown.selectedIndex].value) {
         case "Image":
+            document.getElementById("image-preview").style.display = "";
         case "Video":
         case "Presentation":
             fields = "file-fields";
@@ -23,7 +25,15 @@ function updateType() {
 }
 
 function updatePreview() {
-
+    let image = document.forms["form"]["media-names"].options[document.forms["form"]["media-names"].selectedIndex].label;
+    let splot = image.split(".");
+    if (splot[1] === "png" || splot[1] === "jpg" || splot[1] === "jpeg") {
+        document.getElementById("image-preview-vertical").src = "/media/" + splot[0] + "_vertical." + splot[1];
+        document.getElementById("image-preview-horizontal").src = "/media/" + splot[0] + "_horizontal." + splot[1];
+    } else {
+        document.getElementById("image-preview-vertical").src = "";
+        document.getElementById("image-preview-horizontal").src = "";
+    }
 }
 
 function onVerify() {
@@ -51,6 +61,11 @@ function onVerify() {
 }
 
 function onLoad() {
+    $(".navbar-burger").click(function () {
+        $(".navbar-burger").toggleClass("is-active");
+        $(".navbar-menu").toggleClass("is-active");
+    });
+
     $.get(window.location.origin + "/screen", function (data, status) {
         let select = document.forms["form"]['screens'];
         for (let index in data) {

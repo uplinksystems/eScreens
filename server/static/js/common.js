@@ -1,3 +1,8 @@
+function hamburger() {
+    document.getElementById("burger").classList.toggle('is-active');
+    document.getElementById("navbar").classList.toggle('is-active');
+}
+
 function sendForm(url) {
     let request = new XMLHttpRequest();
     request.open('POST', url, true);
