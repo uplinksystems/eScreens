@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<head>
+    <meta charset="UTF-8">
+    <title>Display System Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="static/js/common.js"></script>
+    <script src="static/js/create-default.js"></script>
+    <style>html {
+        background-color: unset;
+    }</style>
+    <link rel="stylesheet" href="static/css/main.css">
+</head>
+<body onload="onLoad()">
+
+<!--Navigation bar-->
+<div id="nav-placeholder">
+
+</div>
+
+<script>
+    $(function () {
+        $("#nav-placeholder").load("navbar.html");
+    });
+</script>
+<!--end of Navigation bar-->
+
+<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
+    <label>Media Type:
+        <select onchange="updateType()" name="type">
+            <option selected>Image</option>
+            <option>Video</option>
+            <option>Presentation</option>
+            <option>Countdown</option>
+            <option>Twitch</option>
+        </select>
+    </label>
+
+    <div id="countdown-fields" style="display: none" class="media-fields">
+        <label>Countdown Date:
+            <input type="datetime-local" name="countdown-date">
+        </label>
+    </div>
+
+    <div id="stream-fields" style="display: none" class="media-fields">
+        <label>Stream URL:
+            <input type="url" name="url">
+        </label>
+    </div>
+
+    <div id="file-fields" class="media-fields">
+        <label>Media Name:
+            <select name="media-names" onchange="updatePreview()">
+                <option hidden disabled selected value> -- select media -- </option>
+            </select>
+        </label>
+    </div>
+
+    <label>Locations:
+        <select name="screens" multiple>
+            <option hidden disabled selected value> -- select locations -- </option>
+        </select>
+    </label>
+    <label>Start Date:
+        <input type="datetime-local" name="start-time" required>
+    </label>
+    <label>Configuration Name:
+        <input name="default-name" required>
+    </label>
+    <button>Create Configuration</button>
+</form>
+
+</body>
+</html>

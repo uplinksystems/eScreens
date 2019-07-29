@@ -33,36 +33,54 @@ def invalid_screen_str(s):
 # Todo: Pass in id parameters for reusable element functions
 def rotation_dropdown():
     return html.Div([
-        html.H4('Counter-clockwise Rotation:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='rotation-dropdown', options=[{'label': str(i * 90), 'value': i * 90} for i in range(4)],
-                     value=0, style={'display': 'inline-block', 'width': '20%'})
-    ])
+        html.H6('Counter-clockwise Rotation:',
+                style={'margin': '0px 10px 0px 0px', 'vertical-align': 'middle'}),
+        dcc.Dropdown(id='rotation-dropdown', clearable=False, searchable=False,
+                     options=[{'label': str(i * 90), 'value': i * 90} for i in range(4)],
+                     value=0, style={'margin': '0px 20px 0px 0px', 'flex': 1,
+                                     'vertical-align': 'middle'})
+    ], style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+              'align-items': 'stretch'})
 
 
 def media_dropdown():
     medias = [{'label': media, 'value': media} for media in get_media()]
     return html.Div([
-        html.H4('Media File:', style={'margin': '0px 10px 6px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='media-dropdown', options=medias, value='',
-                     style={'display': 'inline-block', 'width': '60%'})
-    ])
+        html.H6('Media File:',
+                style={'margin': '0px 100px 0px 0px', 'vertical-align': 'middle'}),
+        dcc.Dropdown(id='media-dropdown', placeholder='Select media to display', clearable=False, searchable=False,
+                     options=medias, value='',
+                     style={'margin': '0px 20px 0px 0px', 'flex': 1,
+                            'vertical-align': 'middle'}),
+        dbc.Tooltip('This is for selecting the graphic to show.', target='media-dropdown')
+    ], style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+              'align-items': 'stretch'})
 
 
 def media_types_dropdown():
     return html.Div([
-        html.H4('Media Type:', style={'margin': '0px 10px 6px 6px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='media-types-dropdown', options=[],
-                     value='image', style={'display': 'inline-block', 'width': '60%'})
-    ])
+        html.H6('Media Type:',
+                style={'margin': '0px 90px 0px 0px', 'vertical-align': 'middle'}),
+        dcc.Dropdown(id='media-types-dropdown', clearable=False, searchable=False, options=[],
+                     value='image', style={'margin': '0px 20px 0px 0px', 'flex': 1,
+                                           'vertical-align': 'middle'}),
+        dbc.Tooltip('This is for selecting the type of graphic to display.', target='media-types-dropdown')
+    ], style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+              'align-items': 'stretch'})
 
 
 def screen_dropdown():
     screens = [{'label': screen, 'value': screen} for screen in get_screens()]
     return html.Div([
-        html.H4('Screen Locations:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='screen-dropdown', options=screens, multi=True,
-                     style={'display': 'inline-block', 'width': '60%'})
-    ])
+        html.H6('Screen Locations:',
+                style={'margin': '0px 40px 0px 0px', 'vertical-align': 'middle'}),
+        dcc.Dropdown(id='screen-dropdown', placeholder='Select screens to show media on', searchable=False,
+                     options=screens, multi=True,
+                     style={'margin': '0px 20px 0px 0px', 'flex': 1,
+                            'vertical-align': 'middle'}),
+        dbc.Tooltip('This is for selecting the screens to show the new graphic on.', target='screen-dropdown')
+    ], style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+              'align-items': 'stretch'})
 
 
 # The group of components for adding new defaults
@@ -70,6 +88,7 @@ def add_defaults_screen():
     date = datetime.now().strftime('%Y-%m-%dT%H:%M')
 
     return html.Div([
+        html.Div(style={'margin': '20px 0px'}),
         media_types_dropdown(),
         # Todo: filter out images from other types for when image type is selected in dropdown
         media_dropdown(),
@@ -80,38 +99,51 @@ def add_defaults_screen():
                            className='rotateimgvertical')
                   ], id='default-preview-images', style={'display': 'none'}),
         screen_dropdown(),
-        html.H4('Start Date and Time:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Input(id='default-date', type='datetime-local', value=date, style={'margin': '0px 10px', 'display': 'inline'}),
-        dbc.Tooltip('This is the changeover time for the new default media', target='default-date'),
-        html.Div(),
-        html.H4('Graphic Name: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Input(id='default-name', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        html.Div(html.Button('Create New Configuration', id='create-default-button'))
+        html.Div([html.H6('Start Date and Time:', style={'margin': '0px 23px 0px 0px', 'vertical-align': 'middle'}),
+                  dcc.Input(id='default-date', type='datetime-local', value=date,
+                            style={'margin': '0px 20px 0px 0px', 'flex': 1, 'vertical-align': 'middle'})],
+                 style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+                        'align-items': 'stretch'}),
+        dbc.Tooltip('This is the changeover time for the new graphic to display.', target='default-date'),
+        html.Div([html.H6('Graphic Name:', style={'margin': '0px 66px 0px 0px', 'vertical-align': 'middle'}),
+                  dcc.Input(id='default-name',
+                            style={'margin': '0px 20px 0px 0px', 'flex': 1, 'vertical-align': 'middle'})],
+                 style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+                        'align-items': 'stretch'}),
+        dbc.Tooltip('This is the name for the new graphic to display.', target='default-name'),
+        html.Div(html.Button('Create New Configuration', id='create-default-button', style={'width': '100%'}),
+                 style={'margin': 'auto', 'width': '60%', 'align-items': 'stretch'})
     ], id='add-pane', style={'display': 'none'})
 
 
 def add_upload_screen():
     return html.Div([
-        html.H4('Media Upload Type: ', style={'margin': '0px 10px', 'display': 'inline-block'}),
-        dcc.Dropdown(id='upload-types-dropdown',
-                     options=[{'label': type, 'value': type} for type in ['image', 'file']],
-                     value='image', style={'display': 'inline-block', 'width': '60%'}),
+        html.Div([html.H4('Media Upload Type: ', style={'margin': '0px 23px 0px 0px', 'vertical-align': 'middle'}),
+                  dcc.Dropdown(id='upload-types-dropdown', clearable=False, searchable=False,
+                               options=[{'label': type, 'value': type} for type in ['image', 'file']],
+                               value='image',
+                               style={'margin': '0px 20px 0px 0px', 'flex': 1, 'vertical-align': 'middle'})],
+                 style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+                        'align-items': 'stretch'}),
 
         # Image upload panel
         html.Div([
-            html.H4('Image Name:', style={'margin': '0px 10px', 'display': 'inline-block'}),
-            dcc.Input(id='image-name', style={'display': 'inline-block'}),
+            html.Div([html.H4('Image Name:', style={'margin': '0px 85px 0px 0px', 'vertical-align': 'middle'}),
+                      dcc.Input(id='image-name',
+                                style={'margin': '0px 20px 0px 0px', 'flex': 1, 'vertical-align': 'middle'})],
+                     style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+                            'align-items': 'stretch'}),
             dcc.Upload(id='upload-horizontal-image',
                        children=html.Div([html.A('Select horizontal image', id='horizontal-image-label')],
                                          style={'textAlign': 'center'}),
-                       style={'width': '40%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
+                       style={'width': '99%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
                               'borderStyle': 'dashed', 'borderRadius': '5px', 'display': 'inline-block',
                               'margin': '5px'},
                        multiple=False, accept='image/*'),
             dcc.Upload(id='upload-vertical-image',
                        children=html.Div(
                            [html.A('Select vertical image', id='vertical-image-label')], style={'textAlign': 'center'}),
-                       style={'width': '40%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
+                       style={'width': '99%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px',
                               'borderStyle': 'dashed', 'borderRadius': '5px', 'display': 'inline-block',
                               'margin': '5px'},
                        multiple=False, accept='image/*'),
@@ -129,16 +161,20 @@ def add_upload_screen():
         ], id='media-upload-container', style={'display': 'none'}),
 
         # Todo: hide selected media label when nothing is selected
-
-        html.Div(html.Button('Upload Media', id='upload-media-button')),
+        html.Div(html.Button('Upload Media', id='upload-media-button', style={'width': '100%'}),
+                 style={'margin': 'auto', 'width': '60%', 'align-items': 'stretch'})
     ], id='upload-pane')
 
 
 # Dashboard layout
 layout = html.Div([
     # Header
-    html.H1('Zap Zone Display System Dashboard', style={'display': 'inline'}),
-    html.A(html.Button('Logout'), href='/logout', style={'float': 'right', 'display': 'inline'}),
+    html.Div([html.H1('Display System Dashboard',
+                      style={'display': 'inline-block', 'flex': 1, 'vertical-align': 'middle'}),
+              html.A(html.Button('Logout'), href='/logout',
+                     style={'display': 'inline', 'vertical-align': 'middle', 'margin': '0px 20px'})],
+             style={'display': 'flex', 'margin': '5px 10px', 'flex-direction': 'row', 'width': '100%',
+                    'align-items': 'stretch'}),
 
     # Alerts
     dbc.Alert('', id='jar-alert', color='primary', dismissable=True, is_open=False),
@@ -153,7 +189,7 @@ layout = html.Div([
         dcc.Tab(label='Configure Media', value='tab-add'),
         dcc.Tab(label='Add Event', value='tab-event'),
         dcc.Tab(label='Edit', value='tab-edit'),
-        dcc.Tab(label='System', value='tab-system')]),
+        dcc.Tab(label='System', value='tab-system')], style={'margin': '0px 10px'}),
 
     # Main content
     html.Div([
@@ -502,7 +538,7 @@ def register_callbacks(app):
         else:
             return [dcc.Tab(label='Upload New Media', value='tab-upload'),
                     dcc.Tab(label='Configure Media', value='tab-add')], [{'label': type, 'value': type} for type in
-                                                             ['image', 'video']]
+                                                                         ['image', 'video']]
 
 
 if __name__ == '__main__':

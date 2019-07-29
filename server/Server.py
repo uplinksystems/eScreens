@@ -1,18 +1,17 @@
-from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort, send_from_directory, g
+from datetime import datetime
+
+from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort, \
+    send_from_directory, g
 from flask_restful import Resource, Api
 import json
 import os
 import time
 from flask_cors import CORS
-import Dashboard as Dashboard
 from functools import wraps
-import dash
-import dash_bootstrap_components as dbc
 from Common import SCREEN_DIRECTORY, MEDIA_DIRECTORY, get_screens, get_media
-import dash_callback_router
 import threading
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 app.config.from_pyfile('config.cfg')
 CORS(app)
 api = Api(app)
@@ -39,48 +38,10 @@ def login_required(func):
     return decorated_view
 
 
-def _protect_dash_views(dash_app):
-    for view_func in dash_app.server.view_functions:
-        if view_func.startswith('/dashboard/'):
-            dash_app.server.view_functions[view_func] = login_required(dash_app.server.view_functions[view_func])
-
-
-external_stylesheets = [dbc.themes.BOOTSTRAP, 'https://codepen.io/chriddyp/pen/bWLwgP.css',
-                        'https://codepen.io/chriddyp/pen/brPBPO.css']
-dash_app = dash.Dash(__name__, server=app, show_undo_redo=False, url_base_pathname='/dashboard/', external_stylesheets=external_stylesheets,
-                     meta_tags=[
-                         {
-                             'name': 'Display Dashboard',
-                             'content': 'Edit media shown on displays here.'
-                         },
-                         {
-                             'http-equiv': 'X-UA-Compatible',
-                             'content': 'IE=edge'
-                         },
-                         {
-                             'name': 'viewport',
-                             'content': 'width=device-width, initial-scale=1.0'
-                         }
-                     ])
-callback_router = dash_callback_router.CallbackRouter(dash_app, hijack_callbacks=True)
-dash_app.config['suppress_callback_exceptions'] = True
-dash_app.layout = Dashboard.layout
-_protect_dash_views(dash_app)
-Dashboard.register_callbacks(dash_app)
-callback_router.register_callbacks()
-
-
 @app.route('/')
 def dashboard():
     if 'login' in session:
-        return redirect('/dashboard/')
-    return render_template('login.html')
-
-
-@app.route('/old-dashboard')
-def old_dashboard():
-    if 'login' in session:
-        return assets['index.html'].decode()
+        return render_template('/home.html')
     return render_template('login.html')
 
 
@@ -96,9 +57,67 @@ def login():
         return redirect('/')
 
 
-@app.route('/static/<filename>')
-def get_static(filename):
-    return send_from_directory('templates', filename)
+@app.route('/error', methods=['GET', 'POST'])
+def error():
+    return render_template('error.html')
+
+
+@app.route('/create-default', methods=['POST'])
+def create_default():
+    print(request.form)
+    screens = get_screens()
+    for screen in request.form['screens']:
+        try:
+            with open(os.path.join(SCREEN_DIRECTORY, screens[int(screen)].replace(' ', '_') + '.json')) as json_file:
+                config = json.load(json_file)
+            remove_index = -1
+            for i in range(len(config['defaults'])):
+                if config['defaults'][i]['name'] == request.form['default-name']:
+                    remove_index = i
+            if not remove_index == -1:
+                config['defaults'].pop(remove_index)
+
+            config['defaults'].append({'name': request.form['default-name'],
+                                       'start_date_time': datetime.strptime(request.form['start-time'],
+                                                                            '%Y-%m-%dT%H:%M' if len(request.form[
+                                                                                                        'start-time']) == 16 else '%Y-%m-%dT%H:%M:%S').strftime(
+                                           '%m/%d/%Y %H:%M'), 'type': request.form['type'],
+                                       'media': get_media()[int(request.form['media-names'])]})
+            with open(os.path.join(SCREEN_DIRECTORY, screens[int(screen)].replace(' ', '_') + '.json'),
+                      'w') as json_file:
+                json.dump(config, json_file)
+        except Exception as e:
+            print(e)
+            return 'Failed to '
+    return 'Successfully updated all display configurations'
+
+
+@app.route('/upload-media/<image_name>', methods=['POST'])
+def upload_media(image_name):
+    try:
+        if (request.files['image-vertical'].filename != ''):
+            request.files['image-vertical'].save(
+                os.path.join(MEDIA_DIRECTORY, image_name[:-4] + '_vertical' + image_name[-4:]))
+        if (request.files['image-horizontal'].filename != ''):
+            request.files['image-horizontal'].save(
+                os.path.join(MEDIA_DIRECTORY, image_name[:-4] + '_horizontal' + image_name[-4:]))
+        if (request.files['file'].filename != ''):
+            request.files['file'].save(os.path.join(MEDIA_DIRECTORY, image_name))
+    except:
+        return 'Failed to upload files.'
+    return 'Successfully uploaded files.'
+
+
+@app.route('/<page>')
+def get_static(page):
+    print(page)
+    return render_template(page)
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico',
+                               mimetype='image/vnd.microsoft.icon')
 
 
 @app.route('/logout')
@@ -119,7 +138,7 @@ def get_screens_json():
 
 @app.route('/media')
 def get_media_json():
-    return jsonify(get_screens())
+    return jsonify(get_media())
 
 
 @app.route('/screen-connections')
@@ -138,8 +157,8 @@ def get_online_screens():
 
 @app.route('/reboot')
 def reboot():
-    #if 'login' not in session:
-        #abort(401)
+    # if 'login' not in session:
+    # abort(401)
     for name, screen in displays.items():
         if time.time() - screen['last-response-time'] < 3600:  # Last 5 minutes
             print(os.popen("echo Hello World").read())
