@@ -1,0 +1,39 @@
+{
+  "defaults": [
+    {
+      "media": "3, summer_horizontal.jpg, summer_vertical.jpg, video.mkv",
+      "start_date_time": "06/26/2019 16:50",
+      "type": "slideshow"
+    },
+    {
+      "media": "video.mkv",
+      "start_date_time": "06/23/2019 16:55",
+      "type": "video"
+    },
+    {
+      "media": "Anniversary_Logo.png, Next Double Ticket Week:, 07/23/2019, Next All You Can Play:, 07/21/2019",
+      "start_date_time": "06/23/2019 16:58",
+      "type": "countdown"
+    },
+    {
+      "name": "Summer",
+      "start_date_time": "08/07/2019 01:13",
+      "type": "image",
+      "media": "summer.jpg"
+    },
+    {
+      "media": "SampleVideo.mp4",
+      "start_date_time": "08/07/2019 01:27",
+      "type": "video"
+    }
+  ],
+  "config": {
+    "rotation": 0,
+    "name": "Test"
+  },
+  "fallback": {
+    "media": "fallback.png",
+    "type": "image"
+  },
+  "events": []
+}
