@@ -107,7 +107,8 @@ def show_video(video, loop=True):
                     omx = OMXPlayer(video, args=['--loop', '--no-osd', '--layer', '-1', '--no-keys', '-b'])
             else:
                 print('Starting OMX with video: ' + video)
-                omx = OMXPlayer(video, args=(['--loop'] if loop else []) + ['--no-osd', '--layer', '-1', '--no-keys', '-b'])
+                omx = OMXPlayer(video,
+                                args=(['--loop'] if loop else []) + ['--no-osd', '--layer', '-1', '--no-keys', '-b'])
     else:
         print('Video not found: ' + video)
         image_screen.image.source = 'no_media.png'
@@ -135,6 +136,7 @@ def update(dt):
 
     if media_type != 'twitch' and twitch is not None:
         twitch.kill()
+        twitch = None
 
     if media == '' or media_type == '':
         image_screen.image.source = 'no_media.png'
@@ -157,8 +159,9 @@ def update(dt):
         current = splot[int((int(time.time()) % (duration * entries)) / duration + 1)]
         show_image(current)
     elif (media_type == 'twitch'):
-        if (last_media != media):
-            twitch = subprocess.Popen(['streamlink', '-np', 'omxplayer --adev hdmi', 'https://twitch.tv/drdisrespect', 'best'], shell=False)
+        if last_media != media or (twitch is not None and twitch.poll() != None):
+            twitch = subprocess.Popen(['streamlink', '-np', 'omxplayer --adev hdmi --timeout 20 --live', media, 'best'],
+                                      shell=False)
     last_media = media
     last_media_type = media_type
 
