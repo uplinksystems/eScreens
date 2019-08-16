@@ -9,11 +9,14 @@
     <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
     <script src="static/js/common.js"></script>
     <script src="static/js/create-default.js"></script>
+
     <style>html {
         background-color: unset;
     }</style>
     <link rel="stylesheet" href="static/css/main.css">
 </head>
+
+<body onload="onLoad()">
 
 <!--Navigation bar-->
 <div id="nav-placeholder">
@@ -29,7 +32,7 @@
 
 <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
     <label>Media Type:
-        <select onchange="updateType()" name="type">
+        <select onchange="updateType()" name="type" id="type">
             <option selected>Image</option>
             <option>Video</option>
             <option>Presentation</option>
@@ -52,8 +55,8 @@
 
     <div id="file-fields" class="media-fields">
         <label>Media Name:
-            <select name="media-names" onchange="updatePreview()">
-                <option hidden disabled selected value> -- select media -- </option>
+            <select name="media-names" id="media-names" onchange="updatePreview()">
+                <option hidden disabled selected value> -- select media --</option>
             </select>
         </label>
     </div>
@@ -65,7 +68,7 @@
 
     <label>Locations:
         <select name="screens" multiple>
-            <option hidden disabled selected value> -- select locations -- </option>
+            <option hidden disabled selected value> -- select locations --</option>
         </select>
     </label>
     <label>Start Date:

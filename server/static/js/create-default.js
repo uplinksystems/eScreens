@@ -3,13 +3,20 @@ let fields = "file-fields";
 function updateType() {
     let dropdown = document.forms['form']["type"];
     let panes = document.getElementsByClassName("media-fields");
-
-    document.getElementById("image-preview").style.display = "none";
+    var regex = //g;
+        document.getElementById("image-preview").style.display = "none";
     switch (dropdown.options[dropdown.selectedIndex].value) {
         case "Image":
             document.getElementById("image-preview").style.display = "";
+            regex = /\.png|\.jpg|\.jpeg/g;
+            fields = "file-fields";
+            break;
         case "Video":
+            regex = /\.mp4|\.mkv/g;
+            fields = "file-fields";
+            break;
         case "Presentation":
+            regex = /\.ppt/g;
             fields = "file-fields";
             break;
         case "Countdown":
@@ -19,6 +26,11 @@ function updateType() {
             fields = "stream-fields";
             break;
     }
+
+    var medias = document.forms['form']["media-names"];
+
+    for (i = 0; i < medias.options.length; i++)
+        medias.options[i].style.setProperty('display', medias.options[i].text.match(regex) != null ? "" : "none");
 
     for (let i = 0; i < panes.length; i++)
         panes[i].style.setProperty("display", panes[i].id === fields ? "" : "none");
@@ -34,6 +46,28 @@ function updatePreview() {
         document.getElementById("image-preview-vertical").src = "";
         document.getElementById("image-preview-horizontal").src = "";
     }
+}
+
+function onLoad() {
+    $(".navbar-burger").click(function () {
+        $(".navbar-burger").toggleClass("is-active");
+        $(".navbar-menu").toggleClass("is-active");
+    });
+
+    $.get(window.location.origin + "/screen", function (data, status) {
+        let select = document.forms["form"]['screens'];
+        for (let index in data) {
+            select.options[select.options.length] = new Option(data[index], index);
+        }
+    });
+
+    $.get(window.location.origin + "/media", function (data, status) {
+        let select = document.forms["form"]['media-names'];
+        for (let index in data) {
+            select.options[select.options.length] = new Option(data[index], index);
+        }
+        updateType();
+    });
 }
 
 function onVerify() {
