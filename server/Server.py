@@ -93,7 +93,7 @@ def create_default():
                                        'media': get_media()[int(request.form['media-names'])]})
             with open(os.path.join(SCREEN_DIRECTORY, screens[int(screen)].replace(' ', '_') + '.json'),
                       'w') as json_file:
-                json.dump(config, json_file)
+                json.dump(config, json_file, indent=4)
         except Exception as e:
             print(e)
             return 'Failed to '
@@ -129,7 +129,7 @@ def create_screen():
                 {'config': {'name': request.form['screen-name'], 'rotation': request.form['orientation']},
                  'defaults': [],
                  'events': [],
-                 'fallback': {'name': 'fallback', 'type': 'image', 'media': 'fallback.png'}}, json_file)
+                 'fallback': {'name': 'fallback', 'type': 'image', 'media': 'fallback.png'}}, json_file, indent=4)
         return 'Successfully created screen'
     except:
         return 'Failed to create screen'
@@ -202,7 +202,7 @@ class Screens(Resource):
             displays[screen] = {'version': request.args.get('version', default=1, type=int), 'ip': request.remote_addr,
                                 'last-response-time': time.time()}
             with open('displays.json', 'w') as json_file:
-                json.dump(displays, json_file)
+                json.dump(displays, json_file, indent=4)
         with open(os.path.join(SCREEN_DIRECTORY, screen + '.json')) as json_file:
             data = json.load(json_file)
             return jsonify(data)
@@ -211,7 +211,7 @@ class Screens(Resource):
         if 'login' not in session:
             abort(401)
         with open(os.path.join(SCREEN_DIRECTORY, screen + '.json'), 'w') as json_file:
-            json.dump(request.get_json(force=True), json_file)
+            json.dump(request.get_json(force=True), json_file, indent=4)
         return '(Put some sort of confirmation here)'
 
 
