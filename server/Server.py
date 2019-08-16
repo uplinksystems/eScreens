@@ -62,9 +62,17 @@ def error():
     return render_template('error.html')
 
 
+@app.route('/admin.html', methods=['GET'])
+def admin():
+    if not session.get('login', '') == 'admin':
+        abort(401)
+    return render_template('admin.html')
+
+
 @app.route('/create-default', methods=['POST'])
 def create_default():
-    print(request.form)
+    if not session.get('login', '') == 'user' and not session.get('login', '') == 'admin':
+        abort(401)
     screens = get_screens()
     for screen in request.form['screens']:
         try:
@@ -94,6 +102,8 @@ def create_default():
 
 @app.route('/upload-media/<image_name>', methods=['POST'])
 def upload_media(image_name):
+    if not session.get('login', '') == 'user' and not session.get('login', '') == 'admin':
+        abort(401)
     try:
         if (request.files['image-vertical'].filename != ''):
             request.files['image-vertical'].save(
@@ -106,6 +116,23 @@ def upload_media(image_name):
     except:
         return 'Failed to upload files.'
     return 'Successfully uploaded files.'
+
+
+@app.route('/create-screen', methods=['POST'])
+def create_screen():
+    if not session.get('login', '') == 'admin':
+        abort(401)
+    try:
+        with open(os.path.join(SCREEN_DIRECTORY, request.form['screen-name'].replace(' ', '_') + '.json'),
+                  'w') as json_file:
+            json.dump(
+                {'config': {'name': request.form['screen-name'], 'rotation': request.form['orientation']},
+                 'defaults': [],
+                 'events': [],
+                 'fallback': {'name': 'fallback', 'type': 'image', 'media': 'fallback.png'}}, json_file)
+        return 'Successfully created screen'
+    except:
+        return 'Failed to create screen'
 
 
 @app.route('/<page>')
@@ -180,7 +207,7 @@ class Screens(Resource):
             data = json.load(json_file)
             return jsonify(data)
 
-    def put(self, screen):
+    def post(self, screen):
         if 'login' not in session:
             abort(401)
         with open(os.path.join(SCREEN_DIRECTORY, screen + '.json'), 'w') as json_file:
@@ -192,9 +219,12 @@ class Update(Resource):
     def post(self):
         if not session.get('login', '') == 'admin':
             abort(401)
-        file = request.files['file']
-        file.save('escreen.jar')
-        return '(Put some sort of confirmation here)'
+        try:
+            file = request.files['file']
+            file.save('Display.py')
+        except:
+            return 'Failed to update program'
+        return 'Successfully updated program'
 
 
 class Media(Resource):

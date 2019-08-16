@@ -59,24 +59,3 @@ function onVerify() {
 
     return false;
 }
-
-function onLoad() {
-    $(".navbar-burger").click(function () {
-        $(".navbar-burger").toggleClass("is-active");
-        $(".navbar-menu").toggleClass("is-active");
-    });
-
-    $.get(window.location.origin + "/screen", function (data, status) {
-        let select = document.forms["form"]['screens'];
-        for (let index in data) {
-            select.options[select.options.length] = new Option(data[index], index);
-        }
-    });
-
-    $.get(window.location.origin + "/media", function (data, status) {
-        let select = document.forms["form"]['media-names'];
-        for (let index in data) {
-            select.options[select.options.length] = new Option(data[index], index);
-        }
-    });
-}

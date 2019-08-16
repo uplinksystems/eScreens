@@ -3,17 +3,26 @@ function hamburger() {
     document.getElementById("navbar").classList.toggle('is-active');
 }
 
-function sendForm(url) {
+function load() {
+    let request = new XMLHttpRequest();
+    request.open('GET', '/auth', true);
+    request.onload = function() {
+        if (request.responseText !== "admin")
+            document.getElementById("admin-nav").style.display = "none";
+    };
+    request.send();
+}
+
+function sendForm(url, form='form') {
     let request = new XMLHttpRequest();
     request.open('POST', url, true);
     request.onload = function() {
         alert(request.responseText);
-        document.forms["form"].reset();
+        document.forms[form].reset();
     };
     request.onerror = function() {
         alert(request.errorEmitted);
     };
-    console.log(document.forms["form"]);
-    let form = new FormData(document.forms['form']);
-    request.send(form);
+    let data = new FormData(document.forms[form]);
+    request.send(data);
 }

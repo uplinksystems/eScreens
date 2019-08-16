@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<head>
+    <meta charset="UTF-8">
+    <title>Display System Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+    <style>html {
+        background-color: unset;
+    }</style>
+    <link rel="stylesheet" href="static/css/main.css">
+    <script src="static/js/common.js"></script>
+    <script src="static/js/admin.js"></script>
+</head>
+<body>
+
+<!--Navigation bar-->
+<div id="nav-placeholder">
+
+</div>
+
+<script>
+    $(function () {
+        $("#nav-placeholder").load("navbar.html");
+    });
+</script>
+<!--end of Navigation bar-->
+
+
+<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerifyUpdate();"
+      name="form-update">
+
+    <label>Update file:<input type="file" name="file" accept=".py"></label>
+    <button>Upload Update</button>
+</form>
+
+<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerifyAddDisplay();"
+      name="form-add-display">
+    <label>Screen Name:
+        <input name="screen-name" required placeholder="What the screen will be identified by in the dashboard">
+    </label>
+    <label>Screen CCW Rotation:
+        <select name="orientation">
+            <option selected>0</option>
+            <option>90</option>
+            <option>180</option>
+            <option>270</option>
+        </select>
+    </label>
+    <button>Create Display</button>
+</form>
+
+</body>
+</html>
