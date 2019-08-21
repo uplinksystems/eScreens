@@ -157,10 +157,12 @@ def parse_datetime(string):
 
 
 def kill_all_omx():
-    for proc in psutil.process_iter():
-        if proc.name() == 'omxplayer':
-            log.info('Killed leftover OMX process: ' + str(proc.pid))
-            proc.kill()
+    subprocess.Popen(['pkill', '-f', 'omxplayer'], shell=False)
+    # pkill -f omxplayer
+    # for proc in psutil.process_iter():
+    #    if proc.name() == 'omxplayer':
+    #        log.info('Killed leftover OMX process: ' + str(proc.pid))
+    #        proc.kill()
 
 
 @mainthread
@@ -222,7 +224,7 @@ def stop_video():
         return
     log.info('Stopping OMX')
     try:
-        omx.stop()
+        omx.quit()
     except OMXPlayerDeadError:
         log.info('Can\'t close OMX, already dead')
     omx = None
