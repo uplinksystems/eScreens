@@ -7,14 +7,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
     <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
-    <style>html {
-        background-color: unset;
-    }</style>
     <link rel="stylesheet" href="static/css/main.css">
     <script src="static/js/common.js"></script>
     <script src="static/js/upload-media.js"></script>
 </head>
-<body>
+
+<body class="has-background-white-ter" style="height: 100vh">
 
 <!--Navigation bar-->
 <div id="nav-placeholder">
@@ -28,28 +26,108 @@
 </script>
 <!--end of Navigation bar-->
 
+<section class="form">
+  <div class="container" style="margin: 10px">
 
-<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
-    <label>Media Upload Type:
-        <select onchange="update_type()" name="type-dropdown">
-            <option selected>Image</option>
-            <option>Non-image</option>
-        </select>
-    </label>
-    <label>Media Name:
-        <input name="media-name" required placeholder="A simple media name">
-    </label>
+  <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
 
-    <div id="image-fields" class="media-fields">
-        <label>Vertical Image:<input type="file" name="image-vertical" accept=".png, .jpg"></label>
-        <label>Horizontal Image:<input type="file" name="image-horizontal" accept=".png, .jpg"></label>
+    <div class="field">
+      <label class="label">Media Type:</label>
+        <div class="control">
+          <div class="select">
+          <select onchange="update_type()" name="type-dropdown">
+              <option selected>Image</option>
+              <option>Non-image</option>
+          </select>
+          </div>
+        </div>
+
     </div>
 
-    <div id="file-fields" style="display: none" class="media-fields">
-        <input type="file" name="file">
+    <div class="field">
+      <label class="label">Media Name:</label>
+        <div class="control">
+          <input class="input" name="media-name" required placeholder="Please enter a media name...">
+        </div>
     </div>
-    <button>Upload Media</button>
-</form>
 
+      <!-- start old upload portion -->
+      <!-- <div id="image-fields" class="media-fields">
+          <label>Vertical Image:<input type="file" name="image-vertical" accept=".png, .jpg"></label>
+          <label>Horizontal Image:<input type="file" name="image-horizontal" accept=".png, .jpg"></label>
+      </div>
+
+      <div id="file-fields" style="display: none" class="media-fields">
+          <input type="file" name="file">
+      </div> -->
+      <!-- end old upload portion -->
+
+      <!-- start new upload portion -->
+      <div class="field media-fields" id="image-fields">
+        <div class="file has-name is-fullwidth is-dark">
+          <label class="file-label">
+            <input class="file-input" type="file" name="Image-vertical" accept="image/x-png, image/jpeg">
+            <span class="file-cta">
+              <span class="file-icon">
+                <i class="fas fa-upload"></i>
+              </span>
+              <span class="file-label">
+                Vertical Image:
+              </span>
+            </span>
+            <span class="file-name">
+              No file selected.
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field media-fields" id="image-fields">
+        <div class="file has-name is-fullwidth is-dark">
+          <label class="file-label">
+            <input class="file-input" type="file" name="image-horizontal" accept="image/x-png, image/jpeg">
+            <span class="file-cta">
+              <span class="file-icon">
+                <i class="fas fa-upload"></i>
+              </span>
+              <span class="file-label">
+                Horizontal Image:
+              </span>
+            </span>
+            <span class="file-name">
+              No file selected.
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field media-fields" id="file-fields" style="display: none">
+        <div class="file has-name is-fullwidth is-dark">
+          <label class="file-label">
+            <input class="file-input" type="file" name="file">
+            <span class="file-cta">
+              <span class="file-icon">
+                <i class="fas fa-upload"></i>
+              </span>
+              <span class="file-label">
+                File:
+              </span>
+            </span>
+            <span class="file-name">
+              No file selected.
+            </span>
+          </label>
+        </div>
+      </div>
+      <!-- end new upload portion -->
+
+      <div class="field">
+        <div class="control">
+          <button class="button is-dark">Upload Media</button>
+        </div>
+      </div>
+  </form>
+</div>
+</section>
 </body>
 </html>

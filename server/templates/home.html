@@ -7,37 +7,37 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
     <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
-    <style>html {
-        background-color: unset;
-    }</style>
-    <link rel="stylesheet" href="static/css/main.css">
 </head>
-<body>
 
+<body class="has-background-white-ter" style="height: 100vh">
+<section class="Navigation">
 <!--Navigation bar-->
-<div id="nav-placeholder">
-
-</div>
-
-<script>
-    $(function () {
-        $("#nav-placeholder").load("navbar.html");
-    });
-</script>
+  <div id="nav-placeholder">
+      <script>
+          $(function () {
+              $("#nav-placeholder").load("navbar.html");
+            });
+      </script>
+  </div>
 <!--end of Navigation bar-->
+</section>
 
-<div class="columns" style="margin-top: 30px">
-    <div class="column">
-        <a href="upload-media.html">
-            <button class="button is-large is-fullwidth">Upload</button>
-        </a>
+
+<section class="buttons">
+    <div class="container" style="margin-top: 30px">
+        <div class="column">
+            <a href="upload-media.html">
+                <button class="button is-large is-fullwidth is-dark ">Create</button>
+            </a>
+        </div>
+
+        <div class="column">
+            <a href="create-default.html">
+                <button class="button is-large is-fullwidth is-dark ">Configure</button>
+            </a>
+        </div>
     </div>
-    <div class="column">
-        <a href="create-default.html">
-            <button class="button is-large is-fullwidth">Configuration</button>
-        </a>
-    </div>
-</div>
+</section>
 
 </body>
 </html>

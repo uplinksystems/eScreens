@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="static/css/main.css">
 </head>
 
-<body onload="onLoad()">
+<body onload="onLoad()" class="has-background-white-ter" style="height: 100vh">
 
 <!--Navigation bar-->
 <div id="nav-placeholder">
@@ -30,55 +30,146 @@
 </script>
 <!--end of Navigation bar-->
 
-<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
-    <label>Media Type:
-        <select onchange="updateType()" name="type" id="type">
-            <option selected>Image</option>
-            <option>Video</option>
-            <option>Presentation</option>
-            <option>Countdown</option>
-            <option>Twitch</option>
-        </select>
-    </label>
+<!-- begin form -->
+<section class="form">
+  <div class="container" style="margin: 10px">
+    <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
 
-    <div id="countdown-fields" style="display: none" class="media-fields">
-        <label>Countdown Date:
-            <input type="datetime-local" name="countdown-date">
-        </label>
-    </div>
-
-    <div id="stream-fields" style="display: none" class="media-fields">
-        <label>Stream URL:
-            <input type="url" name="url">
-        </label>
-    </div>
-
-    <div id="file-fields" class="media-fields">
-        <label>Media Name:
-            <select name="media-names" id="media-names" onchange="updatePreview()">
-                <option hidden disabled selected value> -- select media --</option>
+<!--
+        <label>Media Type:
+            <select onchange="updateType()" name="type" id="type">
+                <option selected>Image</option>
+                <option>Video</option>
+                <option>Presentation</option>
+                <option>Countdown</option>
+                <option>Twitch</option>
             </select>
         </label>
-    </div>
+-->
 
-    <div id="image-preview">
-        <img src="" id="image-preview-vertical" class="rotateimgvertical">
-        <img src="" id="image-preview-horizontal">
-    </div>
+        <div class="field">
+          <label class="label">Media Type:</label>
+            <div class="control">
+              <div class="select">
+              <select onchange="updateType()" name="type" id="type">
+                <option selected>Image</option>
+                <option>Video</option>
+                <option>Presentation</option>
+                <option>Countdown</option>
+                <option>Twitch</option>
+              </select>
+              </div>
+            </div>
+        </div>
 
-    <label>Locations:
-        <select name="screens" multiple>
-            <option hidden disabled selected value> -- select locations --</option>
-        </select>
-    </label>
-    <label>Start Date:
-        <input type="datetime-local" name="start-time" required>
-    </label>
-    <label>Configuration Name:
-        <input name="default-name" required>
-    </label>
-    <button>Create Configuration</button>
-</form>
+<!--
+         <div id="countdown-fields" style="display: none" class="media-fields">
+            <label>Countdown Date:
+                <input type="datetime-local" name="countdown-date">
+            </label>
+        </div>
+-->
 
+        <div class="field media-fields" style="display:none" id="countdown-fields">
+          <label class="label">Countdown Date:</label>
+            <div class="control">
+              <input type="datetime-local" name="countdown-date">
+            </div>
+        </div>
+
+
+<!--
+        <div id="stream-fields" style="display: none" class="media-fields">
+            <label>Stream URL:
+                <input type="url" name="url">
+            </label>
+        </div>
+ -->
+
+         <div class="field media-fields" style="display:none" id="stream-fields">
+           <label class="label">Stream URL:</label>
+             <div class="control">
+               <input class="input" name="url">
+             </div>
+         </div>
+
+<!--
+        <div id="file-fields" class="media-fields">
+            <label>Media Name:
+                <select name="media-names" id="media-names" onchange="updatePreview()">
+                    <option hidden disabled selected value> -- select media --</option>
+                </select>
+            </label>
+        </div>
+-->
+        <div class="field media-fields" id="file-fields">
+          <label class="label">Media Name:</label>
+            <div class="control">
+              <div class="select">
+              <select onchange="updatePreview()" name="media-names" id="media-names">
+                  <option hidden disabled selected value> -- select media --</option>
+              </select>
+              </div>
+            </div>
+        </div>
+
+        <!-- TODO: Change Image previewer -->
+        <div id="image-preview">
+            <img src="" id="image-preview-vertical" class="rotateimgvertical">
+            <img src="" id="image-preview-horizontal">
+        </div>
+
+<!--
+        <label>Locations:
+            <select name="screens" multiple>
+                <option hidden disabled selected value> -- select locations --</option>
+            </select>
+        </label>
+-->
+
+        <div class="field">
+          <label class="label">Locations:</label>
+            <div class="control">
+              <div class="select is-multiple">
+              <select name="screens" multiple>
+                  <option hidden disabled selected value> -- select locations --</option>
+              </select>
+              </div>
+            </div>
+        </div>
+
+<!--
+        <label>Start Date:
+            <input type="datetime-local" name="start-time" required>
+        </label>
+-->
+
+        <div class="field">
+          <label class="label">Start Date</label>
+            <div class="control">
+              <input class="input" name="start-time" required>
+            </div>
+        </div>
+
+<!--
+        <label>Configuration Name:
+            <input name="default-name" required>
+        </label>
+-->
+        <div class="field">
+          <label class="label">Configuration Name:</label>
+            <div class="control">
+              <input class="input" name="default-name" required>
+            </div>
+        </div>
+
+        <div class="field">
+          <div class="control">
+            <button class="button is-dark">Create Configuration</button>
+          </div>
+        </div>
+    </form>
+  </div>
+  </section>
 </body>
 </html>

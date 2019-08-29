@@ -14,7 +14,7 @@
     <script src="static/js/common.js"></script>
     <script src="static/js/admin.js"></script>
 </head>
-<body>
+<body class="has-background-white-ter" style="height: 100vh">
 
 <!--Navigation bar-->
 <div id="nav-placeholder">
@@ -28,29 +28,102 @@
 </script>
 <!--end of Navigation bar-->
 
+<section class="form">
+  <div class="container" style="margin: 10px">
+    <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerifyUpdate();"
+          name="form-update">
 
-<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerifyUpdate();"
-      name="form-update">
+<!-- Original Button and Label
+        <label>Update file:<input type="file" name="file" accept=".py"></label>
+        <button>Upload Update</button>
+-->
+    <!-- New Button and Label -->
+    <h4 class="title is-4">Update System</h4>
+    <div class="field">
+      <div class="file has-name is-fullwidth is-dark">
+        <label class="file-label">
+          <input class="file-input" type="file" name="updateFile" accept=".py">
+          <span class="file-cta">
+            <span class="file-icon">
+              <i class="fas fa-upload"></i>
+            </span>
+            <span class="file-label">
+              Update File
+            </span>
+          </span>
+          <span class="file-name">
+            No file selected.
+          </span>
+        </label>
+      </div>
+    </div>
 
-    <label>Update file:<input type="file" name="file" accept=".py"></label>
-    <button>Upload Update</button>
-</form>
+    <div class="field">
+      <div class="control">
+        <button class="button is-dark">Upload Update</button>
+      </div>
+    </div>
 
-<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerifyAddDisplay();"
-      name="form-add-display">
-    <label>Screen Name:
-        <input name="screen-name" required placeholder="What the screen will be identified by in the dashboard">
-    </label>
-    <label>Screen CCW Rotation:
-        <select name="orientation">
-            <option selected>0</option>
-            <option>90</option>
-            <option>180</option>
-            <option>270</option>
-        </select>
-    </label>
-    <button>Create Display</button>
-</form>
+    <!-- end new button -->
+
+    </form>
+  </div>
+</section>
+<hr>
+<section class="form">
+  <div class="container" style="margin: 10px">
+    <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerifyAddDisplay();"
+          name="form-add-display">
+          <h4 class="title is-4">Add Display</h4>
+
+<!--
+        <label>Screen Name:
+            <input name="screen-name" required placeholder="What the screen will be identified by in the dashboard">
+        </label>
+        <label>Screen CCW Rotation:
+            <select name="orientation">
+                <option selected>0</option>
+                <option>90</option>
+                <option>180</option>
+                <option>270</option>
+            </select>
+        </label>
+        <button>Create Display</button>
+ -->
+     <div class="field">
+       <label class="label">Screen Name:</label>
+         <div class="control">
+           <input class="input" name="screen-name" required placeholder="Dashboard Identifier">
+         </div>
+     </div>
+
+     <div class="field">
+       <label class="label">Screen Rotation:</label>
+         <div class="control has-icons-left" style="margin: 10px 0px">
+           <div class="select">
+           <select name="orientation">
+             <option selected>0</option>
+             <option>90</option>
+             <option>180</option>
+             <option>270</option>
+           </select>
+           </div>
+           <span class="icon is-left">
+             <i class="fas fa-undo"></i>
+           </span>
+           <p class="help">Rotation is counter clock wise.</p>
+           </div>
+     </div>
+
+     <div class="field">
+       <div class="control">
+         <button class="button is-dark">Create Screen</button>
+       </div>
+     </div>
+
+    </form>
+</div>
+</section>
 
 </body>
 </html>
