@@ -30,7 +30,7 @@ function updateType() {
     var medias = document.forms['form']["media-names"];
 
     for (i = 0; i < medias.options.length; i++)
-        medias.options[i].style.setProperty('display', medias.options[i].text.match(regex) != null ? "" : "none");
+        medias.options[i].style.setProperty('display', medias.options[i].text.toLowerCase().match(regex) != null ? "" : "none");
 
     for (let i = 0; i < panes.length; i++)
         panes[i].style.setProperty("display", panes[i].id === fields ? "" : "none");
@@ -57,14 +57,14 @@ function onLoad() {
     $.get(window.location.origin + "/screen", function (data, status) {
         let select = document.forms["form"]['screens'];
         for (let index in data) {
-            select.options[select.options.length] = new Option(data[index], index);
+            select.options[select.options.length] = new Option(data[index], data[index]);
         }
     });
 
     $.get(window.location.origin + "/media", function (data, status) {
         let select = document.forms["form"]['media-names'];
         for (let index in data) {
-            select.options[select.options.length] = new Option(data[index], index);
+            select.options[select.options.length] = new Option(data[index], data[index]);
         }
         updateType();
     });

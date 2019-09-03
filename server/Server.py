@@ -73,10 +73,10 @@ def admin():
 def create_default():
     if not session.get('login', '') == 'user' and not session.get('login', '') == 'admin':
         abort(401)
-    screens = get_screens()
-    for screen in request.form['screens']:
+    print(request.form)
+    for screen in request.form.getlist('screens'):
         try:
-            with open(os.path.join(SCREEN_DIRECTORY, screens[int(screen)].replace(' ', '_') + '.json')) as json_file:
+            with open(os.path.join(SCREEN_DIRECTORY, screen.replace(' ', '_') + '.json')) as json_file:
                 config = json.load(json_file)
             remove_index = -1
             for i in range(len(config['defaults'])):
@@ -89,9 +89,9 @@ def create_default():
                                        'start_date_time': datetime.strptime(request.form['start-time'],
                                                                             '%Y-%m-%dT%H:%M' if len(request.form[
                                                                                                         'start-time']) == 16 else '%Y-%m-%dT%H:%M:%S').strftime(
-                                           '%m/%d/%Y %H:%M'), 'type': request.form['type'],
-                                       'media': get_media()[int(request.form['media-names'])]})
-            with open(os.path.join(SCREEN_DIRECTORY, screens[int(screen)].replace(' ', '_') + '.json'),
+                                           '%m/%d/%Y %H:%M'), 'type': request.form['type'].lower(),
+                                       'media': request.form['media-names']})
+            with open(os.path.join(SCREEN_DIRECTORY, screen.replace(' ', '_') + '.json'),
                       'w') as json_file:
                 json.dump(config, json_file, indent=4)
         except Exception as e:
@@ -105,15 +105,17 @@ def upload_media(image_name):
     if not session.get('login', '') == 'user' and not session.get('login', '') == 'admin':
         abort(401)
     try:
-        if (request.files['image-vertical'].filename != ''):
+        splot = image_name.split('.')
+        if ('image-vertical' in request.files):
             request.files['image-vertical'].save(
-                os.path.join(MEDIA_DIRECTORY, image_name[:-4] + '_vertical' + image_name[-4:]))
-        if (request.files['image-horizontal'].filename != ''):
+                os.path.join(MEDIA_DIRECTORY, splot[0] + '_vertical.' + splot[1]))
+        if ('image-horizontal' in request.files):
             request.files['image-horizontal'].save(
-                os.path.join(MEDIA_DIRECTORY, image_name[:-4] + '_horizontal' + image_name[-4:]))
-        if (request.files['file'].filename != ''):
+                os.path.join(MEDIA_DIRECTORY, splot[0] + '_horizontal.' + splot[1]))
+        if ('file' in request.files):
             request.files['file'].save(os.path.join(MEDIA_DIRECTORY, image_name))
-    except:
+    except Exception as e:
+        print(e)
         return 'Failed to upload files.'
     return 'Successfully uploaded files.'
 
@@ -126,7 +128,7 @@ def create_screen():
         with open(os.path.join(SCREEN_DIRECTORY, request.form['screen-name'].replace(' ', '_') + '.json'),
                   'w') as json_file:
             json.dump(
-                {'config': {'name': request.form['screen-name'], 'rotation': request.form['orientation']},
+                {'config': {'name': request.form['screen-name'].replace(' ', '_'), 'rotation': int(request.form['orientation'])},
                  'defaults': [],
                  'events': [],
                  'fallback': {'name': 'fallback', 'type': 'image', 'media': 'fallback.png'}}, json_file, indent=4)
