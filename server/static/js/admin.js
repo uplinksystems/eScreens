@@ -1,5 +1,5 @@
 function onVerifyUpdate() {
-    if (document.forms["form-update"]["file"].value === "") {
+    if (document.forms["form-update"]["updateFile"].value === "") {
         alert("Please select a python program.");
         return false;
     }

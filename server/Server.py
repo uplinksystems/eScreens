@@ -96,7 +96,7 @@ def create_default():
                 json.dump(config, json_file, indent=4)
         except Exception as e:
             print(e)
-            return 'Failed to '
+            return 'Failed to create default'
     return 'Successfully updated all display configurations'
 
 
@@ -220,7 +220,7 @@ class Update(Resource):
         if not session.get('login', '') == 'admin':
             abort(401)
         try:
-            file = request.files['file']
+            file = request.files['updateFile']
             file.save('Display.py')
         except:
             return 'Failed to update program'
