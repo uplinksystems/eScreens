@@ -7,10 +7,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
     <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
-    <style>html {
-        background-color: unset;
-    }</style>
-    <link rel="stylesheet" href="static/css/main.css">
     <script src="static/js/common.js"></script>
     <script src="static/js/admin.js"></script>
     <script src="static/js/bulma.js"></script>
@@ -34,11 +30,6 @@
     <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerifyUpdate();"
           name="form-update">
 
-<!-- Original Button and Label
-        <label>Update file:<input type="file" name="file" accept=".py"></label>
-        <button>Upload Update</button>
--->
-    <!-- New Button and Label -->
     <h4 class="title is-4">Update System</h4>
     <div class="field">
       <div class="file has-name is-fullwidth is-dark">
@@ -65,8 +56,6 @@
       </div>
     </div>
 
-    <!-- end new button -->
-
     </form>
   </div>
 </section>
@@ -77,20 +66,6 @@
           name="form-add-display">
           <h4 class="title is-4">Add Display</h4>
 
-<!--
-        <label>Screen Name:
-            <input name="screen-name" required placeholder="What the screen will be identified by in the dashboard">
-        </label>
-        <label>Screen CCW Rotation:
-            <select name="orientation">
-                <option selected>0</option>
-                <option>90</option>
-                <option>180</option>
-                <option>270</option>
-            </select>
-        </label>
-        <button>Create Display</button>
- -->
      <div class="field">
        <label class="label">Screen Name:</label>
          <div class="control">
