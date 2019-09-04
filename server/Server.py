@@ -73,10 +73,9 @@ def admin():
 def create_default():
     if not session.get('login', '') == 'user' and not session.get('login', '') == 'admin':
         abort(401)
-    print(request.form)
-    for screen in request.form.getlist('screens'):
+    for name in request.form.getlist('screens'):
         try:
-            with open(os.path.join(SCREEN_DIRECTORY, screen.replace(' ', '_') + '.json')) as json_file:
+            with open(os.path.join(SCREEN_DIRECTORY, name.replace(' ', '_') + '.json')) as json_file:
                 config = json.load(json_file)
             remove_index = -1
             for i in range(len(config['defaults'])):
@@ -84,15 +83,20 @@ def create_default():
                     remove_index = i
             if not remove_index == -1:
                 config['defaults'].pop(remove_index)
-
+            if request.form['type'].lower() == 'slideshow':
+                media = request.form['duration']
+                for media_name in request.form.getlist('media-names'):
+                    media += ', ' + media_name
+            else:
+                media = request.form['media-names']
             config['defaults'].append({'name': request.form['default-name'],
                                        'start_date_time': datetime.strptime(request.form['start-time'],
                                                                             '%Y-%m-%dT%H:%M' if len(request.form[
                                                                                                         'start-time']) == 16 else '%Y-%m-%dT%H:%M:%S').strftime(
                                            '%m/%d/%Y %H:%M'), 'type': request.form['type'].lower(),
-                                       'media': request.form['media-names']})
-            with open(os.path.join(SCREEN_DIRECTORY, screen.replace(' ', '_') + '.json'),
-                      'w') as json_file:
+                                       'media': media})
+            print('Updated Config: ' + str(config))
+            with open(os.path.join(SCREEN_DIRECTORY, name.replace(' ', '_') + '.json'), 'w') as json_file:
                 json.dump(config, json_file, indent=4)
         except Exception as e:
             print(e)
@@ -102,6 +106,7 @@ def create_default():
 
 @app.route('/upload-media/<image_name>', methods=['POST'])
 def upload_media(image_name):
+    print(session.get('login', '') == 'user')
     if not session.get('login', '') == 'user' and not session.get('login', '') == 'admin':
         abort(401)
     try:

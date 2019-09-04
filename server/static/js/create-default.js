@@ -4,7 +4,8 @@ function updateType() {
     let dropdown = document.forms['form']["type"];
     let panes = document.getElementsByClassName("media-fields");
     var regex = //g;
-        document.getElementById("image-preview").style.display = "none";
+    document.getElementById("image-preview").style.display = "none";
+    var multi = false;
     switch (dropdown.options[dropdown.selectedIndex].value) {
         case "Image":
             document.getElementById("image-preview").style.display = "";
@@ -22,18 +23,25 @@ function updateType() {
         case "Countdown":
             fields = "countdown-fields";
             break;
+        case "Slideshow":
+            regex = /\.png|\.jpg|\.jpeg/g;
+            fields = "file-fields";
+            multi = true;
+            break;
         case "Twitch":
             fields = "stream-fields";
             break;
     }
 
     var medias = document.forms['form']["media-names"];
+    medias.multiple = multi;
 
     for (i = 0; i < medias.options.length; i++)
         medias.options[i].style.setProperty('display', medias.options[i].text.toLowerCase().match(regex) != null ? "" : "none");
 
     for (let i = 0; i < panes.length; i++)
         panes[i].style.setProperty("display", panes[i].id === fields ? "" : "none");
+    document.getElementById("slideshow-fields").style.setProperty("display",  dropdown.options[dropdown.selectedIndex].value === "Slideshow" ? "" : "none")
 }
 
 function updatePreview() {
@@ -62,9 +70,9 @@ function onLoad() {
     });
 
     $.get(window.location.origin + "/media", function (data, status) {
-        let select = document.forms["form"]['media-names'];
+        let mediaSelect = document.forms["form"]['media-names'];
         for (let index in data) {
-            select.options[select.options.length] = new Option(data[index], data[index]);
+            mediaSelect.options[mediaSelect.options.length] = new Option(data[index], data[index]);
         }
         updateType();
     });
