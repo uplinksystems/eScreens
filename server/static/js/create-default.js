@@ -35,6 +35,14 @@ function updateType() {
 
     var medias = document.forms['form']["media-names"];
     medias.multiple = multi;
+    
+    if (multi) {
+      var mediaPicker = document.getElementById("media-name-picker");
+      mediaPicker.classList.add("is-multiple");
+    } else {
+      var mediaPicker = document.getElementById("media-name-picker");
+      mediaPicker.classList.remove("is-multiple");
+    }
 
     for (i = 0; i < medias.options.length; i++)
         medias.options[i].style.setProperty('display', medias.options[i].text.toLowerCase().match(regex) != null ? "" : "none");
