@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="has-background-white-ter" style="height: 100%">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <head>
     <meta charset="UTF-8">
@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body onload="onLoad()" class="has-background-white-ter" style="height: 100vh">
+<body onload="onLoad()" class="has-background-white-ter" style="height: 100%">
 
 <!--Navigation bar-->
 <div id="nav-placeholder">
@@ -29,7 +29,7 @@
 
 <section class="form">
     <div class="container" style="margin: 10px">
-        <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
+        <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form" novalidate>
 
 
             <div class="field">
@@ -86,6 +86,7 @@
                 <img src="" id="image-preview-vertical" class="rotateimgvertical">
                 <img src="" id="image-preview-horizontal">
             </div>
+
 
             <div class="field">
                 <label class="label">Locations:</label>
