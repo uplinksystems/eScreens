@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="has-background-white-ter" style="height: 100%">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <head>
     <meta charset="UTF-8">
@@ -9,14 +9,11 @@
     <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
     <script src="static/js/common.js"></script>
     <script src="static/js/create-default.js"></script>
-
-    <style>html {
-        background-color: unset;
-    }</style>
-    <link rel="stylesheet" href="static/css/main.css">
+    <script src="static/js/bulma.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 
-<body onload="onLoad()">
+<body onload="onLoad()" class="has-background-white-ter" style="height: 100%">
 
 <!--Navigation bar-->
 <div id="nav-placeholder">
@@ -30,55 +27,99 @@
 </script>
 <!--end of Navigation bar-->
 
-<form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form">
-    <label>Media Type:
-        <select onchange="updateType()" name="type" id="type">
-            <option selected>Image</option>
-            <option>Video</option>
-            <option>Presentation</option>
-            <option>Countdown</option>
-            <option>Twitch</option>
-        </select>
-    </label>
+<section class="form">
+    <div class="container" style="margin: 10px">
+        <form enctype="multipart/form-data" action="/error" method="post" onsubmit="return onVerify();" name="form" novalidate>
 
-    <div id="countdown-fields" style="display: none" class="media-fields">
-        <label>Countdown Date:
-            <input type="datetime-local" name="countdown-date">
-        </label>
+
+            <div class="field">
+                <label class="label">Media Type:</label>
+                <div class="control">
+                    <div class="select">
+                        <select onchange="updateType()" name="type" id="type">
+                            <option selected>Image</option>
+                            <option>Video</option>
+                            <option>Slideshow</option>
+                            <option disabled>Presentation</option>
+                            <option>Countdown</option>
+                            <option>Twitch</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="field media-fields" style="display:none" id="countdown-fields">
+                <label class="label">Countdown Date:</label>
+                <div class="control">
+                    <input type="datetime-local" class="input" name="countdown-date">
+                </div>
+            </div>
+
+
+            <div class="field media-fields" style="display:none" id="stream-fields">
+                <label class="label">Stream URL:</label>
+                <div class="control">
+                    <input class="input" name="url">
+                </div>
+            </div>
+
+            <div class="field media-fields" style="display:none" id="slideshow-fields">
+                <label class="label">Slide Duration(Seconds):</label>
+                <div class="control">
+                    <input class="input" type="number" name="duration">
+                </div>
+            </div>
+
+            <div class="field media-fields" id="file-fields">
+                <label class="label">Media Name:</label>
+                <div class="control">
+                    <div class="select" id="media-name-picker">
+                        <select onchange="updatePreview()" name="media-names" id="media-names">
+                            <option hidden disabled selected value> -- select media --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="image-preview">
+                <img src="" id="image-preview-vertical" class="rotateimgvertical">
+                <img src="" id="image-preview-horizontal">
+            </div>
+
+
+            <div class="field">
+                <label class="label">Locations:</label>
+                <div class="control">
+                    <div class="select is-multiple">
+                        <select name="screens" multiple>
+                            <option hidden disabled selected value> -- select locations --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">Start Date</label>
+                <div class="control">
+                    <input type="datetime-local" class="input" name="start-time" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">Configuration Name:</label>
+                <div class="control">
+                    <input class="input" name="default-name" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <div class="control">
+                    <button class="button is-dark">Create Configuration</button>
+                </div>
+            </div>
+        </form>
     </div>
-
-    <div id="stream-fields" style="display: none" class="media-fields">
-        <label>Stream URL:
-            <input type="url" name="url">
-        </label>
-    </div>
-
-    <div id="file-fields" class="media-fields">
-        <label>Media Name:
-            <select name="media-names" id="media-names" onchange="updatePreview()">
-                <option hidden disabled selected value> -- select media --</option>
-            </select>
-        </label>
-    </div>
-
-    <div id="image-preview">
-        <img src="" id="image-preview-vertical" class="rotateimgvertical">
-        <img src="" id="image-preview-horizontal">
-    </div>
-
-    <label>Locations:
-        <select name="screens" multiple>
-            <option hidden disabled selected value> -- select locations --</option>
-        </select>
-    </label>
-    <label>Start Date:
-        <input type="datetime-local" name="start-time" required>
-    </label>
-    <label>Configuration Name:
-        <input name="default-name" required>
-    </label>
-    <button>Create Configuration</button>
-</form>
-
+</section>
 </body>
 </html>
