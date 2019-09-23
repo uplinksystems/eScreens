@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime
 
 from flask import Flask, jsonify, request, send_file, redirect, session, render_template, flash, abort, \
@@ -98,8 +99,8 @@ def create_default():
             print('Updated Config: ' + str(config))
             with open(os.path.join(SCREEN_DIRECTORY, name.replace(' ', '_') + '.json'), 'w') as json_file:
                 json.dump(config, json_file, indent=4)
-        except Exception as e:
-            print(e)
+        except Exception:
+            traceback.print_exc()
             return 'Failed to create default'
     return 'Successfully updated all display configurations'
 
